@@ -10,7 +10,7 @@ import { exec } from 'child_process';
 const execAsync = util.promisify(exec);
 
 // Constantes para directorios y archivos
-const SHAPEFILES_DIR = './tmp/extracted/shapefiles-mapton-ciudadano';
+const SHAPEFILES_DIR = '/tmp/extract/shapefiles-mapton-ciudadano';
 const PROCESSED_DIR = './tmp/processed';
 const BATCH_SIZE = 10; // Procesar 10 rutas por lote
 
