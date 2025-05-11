@@ -1,19 +1,14 @@
 import * as fs from 'fs';
-import * as path from 'path';
-import * as shapefile from 'shapefile';
-import { parseStringPromise } from 'xml2js';
 import { db } from '../server/db';
 import { busRoutes, busStops } from '../shared/schema';
 import { storage } from '../server/storage';
+import { BusRoute } from '../shared/schema';
 
-// Configuración
+// Ruta al archivo KML
 const KML_FILE_PATH = './attached_assets/2017-03-04_04-27.kml';
-const SHAPEFILE_ZIP_PATH = './attached_assets/shapefiles-mapaton-ciudadano.zip';
-const TEMP_DIR = './data/temp';
-const OUTPUT_SHAPEFILE_DIR = './data/shapefiles';
 
-// Colores para las zonas
-const zoneColors: Record<string, string> = {
+// Colores para zonas
+const zoneColors: { [key: string]: string } = {
   'norte': '#EF4444', // red-500
   'sur': '#3B82F6',   // blue-500
   'este': '#22C55E',  // green-500
@@ -21,8 +16,8 @@ const zoneColors: Record<string, string> = {
   'centro': '#F97316' // orange-500
 };
 
-// Colores para rutas específicas (basado en las notas en el KML)
-const routeColors: Record<string, string> = {
+// Colores para rutas específicas basados en Mapaton.org
+const routeColors: { [key: string]: string } = {
   'Amarillo': '#FFCC00',
   'Azul': '#0066CC',
   'Rojo': '#CC0000',
@@ -30,322 +25,316 @@ const routeColors: Record<string, string> = {
   'Naranja': '#FF6600',
   'Morado': '#9900CC',
   'Blanco': '#FFFFFF',
-  'Negro': '#333333',
-  'Gris': '#999999',
-  'Café': '#663300'
+  'Negro': '#333333'
 };
 
-// Procesar KML directamente 
+// Función para procesar un placemark de KML y extraer datos de la ruta
 async function processKmlFile(filePath: string) {
-  const content = fs.readFileSync(filePath, 'utf8');
+  console.log(`Procesando archivo KML: ${filePath}`);
   
-  // Dividir por Placemark para procesar cada ruta
-  const placemarks = content.split('<Placemark>').slice(1);
-  console.log(`Encontradas ${placemarks.length} elementos en el archivo KML.`);
-  
-  // Ver el contenido del primer placemark para depuración
-  if (placemarks.length > 0) {
-    console.log('Primer placemark (fragmento):', placemarks[0].substring(0, 300));
-  }
-  
-  let routeCount = 0;
-  let stopCount = 0;
-  let routes: any[] = [];
-  
-  // Primera pasada: procesar las rutas (LineString)
-  for (const placemark of placemarks) {
-    try {
-      // Verificar si es una ruta (tiene LineString) y no una parada (Point)
-      if (!placemark.includes('<LineString>')) {
-        console.log('No es una ruta (sin LineString)');
-        continue;
-      }
-      
-      console.log('Procesando ruta con LineString');
-      
-      // Extraer nombre
-      const nameMatch = placemark.match(/<n>(.*?)<\/n>/);
-      if (!nameMatch) {
-        // Intentar con otro formato
-        const nameMatch2 = placemark.match(/<name>(.*?)<\/name>/);
-        if (!nameMatch2) {
-          console.log('No se encontró nombre para la ruta');
+  try {
+    // Leer el archivo KML
+    const kmlContent = fs.readFileSync(filePath, 'utf8');
+    
+    // Dividir el archivo en placemarks (cada uno es una ruta)
+    const placemarks = kmlContent.split('<Placemark>').slice(1);
+    console.log(`Encontrados ${placemarks.length} placemarks (rutas potenciales)`);
+    
+    // Limpiar la base de datos antes de la importación
+    await db.delete(busStops);
+    await db.delete(busRoutes);
+    console.log('Base de datos limpia para la importación');
+    
+    let routeCount = 0;
+    let stopCount = 0;
+    
+    // Procesar cada placemark
+    for (const placemark of placemarks) {
+      try {
+        // Extraer nombre de la ruta
+        const nameMatch = placemark.match(/<n>(.*?)<\/n>/);
+        if (!nameMatch) {
+          console.log('Placemark sin nombre de ruta, omitiendo...');
           continue;
         }
-        var name = nameMatch2[1];
-      } else {
-        var name = nameMatch[1];
-      }
-      
-      console.log('Nombre de ruta encontrado:', name);
-      
-      // Extraer metadatos
-      let id = '', desc = '', notes = '', peakAM = '10', midday = '15', peakPM = '10', night = '20';
-      
-      const idMatch = placemark.match(/<Data name="id"><value>(.*?)<\/value><\/Data>/);
-      if (idMatch) id = idMatch[1];
-      
-      const descMatch = placemark.match(/<Data name="desc"><value>(.*?)<\/value><\/Data>/);
-      if (descMatch) desc = descMatch[1];
-      
-      const notesMatch = placemark.match(/<Data name="notes"><value>(.*?)<\/value><\/Data>/);
-      if (notesMatch) notes = notesMatch[1];
-      
-      const peakAMMatch = placemark.match(/<Data name="peak_am"><value>(.*?)<\/value><\/Data>/);
-      if (peakAMMatch) peakAM = peakAMMatch[1];
-      
-      const middayMatch = placemark.match(/<Data name="midday"><value>(.*?)<\/value><\/Data>/);
-      if (middayMatch) midday = middayMatch[1];
-      
-      const peakPMMatch = placemark.match(/<Data name="peak_pm"><value>(.*?)<\/value><\/Data>/);
-      if (peakPMMatch) peakPM = peakPMMatch[1];
-      
-      const nightMatch = placemark.match(/<Data name="night"><value>(.*?)<\/value><\/Data>/);
-      if (nightMatch) night = nightMatch[1];
-      
-      // Extraer coordenadas
-      const coordMatch = placemark.match(/<LineString><coordinates>([\s\S]*?)<\/coordinates><\/LineString>/);
-      if (!coordMatch) {
-        continue;
-      }
-      
-      // Procesar coordenadas (pueden estar en múltiples líneas)
-      const coordsText = coordMatch[1].trim();
-      const coordinates = coordsText.split(/\s+/)
-        .map(line => {
-          const parts = line.trim().split(',');
-          if (parts.length < 2) return null;
-          
-          const lon = parseFloat(parts[0]);
-          const lat = parseFloat(parts[1]);
-          
-          if (isNaN(lon) || isNaN(lat)) return null;
-          return [lon, lat] as [number, number];
-        })
-        .filter(coord => coord !== null) as [number, number][];
-      
-      if (coordinates.length < 2) {
-        continue;
-      }
-      
-      // Determinar zona y color
-      const zone = determineZone(desc);
-      let color = zoneColors[zone];
-      
-      if (notes && routeColors[notes]) {
-        color = routeColors[notes];
-      }
-      
-      // Generar horarios
-      const schedule = generateSchedule(peakAM, midday, peakPM, night);
-      
-      // Extraer ID de ruta del nombre
-      const routeId = extractRouteId(name);
-      const shortName = `R${routeId}`;
-      
-      // Crear objeto GeoJSON
-      const geoJSON = {
-        type: "Feature",
-        properties: {
-          id: routeId,
-          name: name,
-          shortName: shortName,
-          color: color,
-          desc: desc
-        },
-        geometry: {
-          type: "LineString",
-          coordinates: coordinates
+        
+        // Solo procesar placemarks que tengan LineString (rutas)
+        if (!placemark.includes('<LineString>')) {
+          console.log(`Placemark ${nameMatch[1]} no tiene LineString, omitiendo...`);
+          continue;
         }
-      };
-      
-      // Crear registro de ruta
-      const routeData = {
-        name: name + (desc ? ` - ${desc}` : ''),
-        shortName: shortName,
-        color: color,
-        frequency: schedule.frequency,
-        scheduleStart: schedule.start,
-        scheduleEnd: schedule.end,
-        stopsCount: Math.max(10, Math.floor(coordinates.length / 15)),
-        approximateTime: schedule.approximateTime,
-        zone: zone,
-        popular: routeCount < 5, // Primeras 5 son populares
-        geoJSON: geoJSON
-      };
-      
-      const route = await storage.createRoute(routeData);
-      console.log(`Ruta creada: ${route.name} (${route.shortName})`);
-      routes.push(route);
-      
-      routeCount++;
-    } catch (err) {
-      console.error('Error procesando ruta:', err);
+        
+        const routeName = nameMatch[1];
+        
+        // Extraer descripción, notas y datos de frecuencia
+        let description = '';
+        let notes = '';
+        let peakAM = '';
+        let midday = '';
+        let peakPM = '';
+        let night = '';
+        let routeId = 0;
+        
+        const descMatch = placemark.match(/<Data name="desc"><value>(.*?)<\/value><\/Data>/);
+        if (descMatch) {
+          description = descMatch[1];
+        }
+        
+        const notesMatch = placemark.match(/<Data name="notes"><value>(.*?)<\/value><\/Data>/);
+        if (notesMatch) {
+          notes = notesMatch[1];
+        }
+        
+        const peakAMMatch = placemark.match(/<Data name="peak_am"><value>(.*?)<\/value><\/Data>/);
+        if (peakAMMatch) {
+          peakAM = peakAMMatch[1];
+        }
+        
+        const middayMatch = placemark.match(/<Data name="midday"><value>(.*?)<\/value><\/Data>/);
+        if (middayMatch) {
+          midday = middayMatch[1];
+        }
+        
+        const peakPMMatch = placemark.match(/<Data name="peak_pm"><value>(.*?)<\/value><\/Data>/);
+        if (peakPMMatch) {
+          peakPM = peakPMMatch[1];
+        }
+        
+        const nightMatch = placemark.match(/<Data name="night"><value>(.*?)<\/value><\/Data>/);
+        if (nightMatch) {
+          night = nightMatch[1];
+        }
+        
+        const idMatch = placemark.match(/<Data name="id"><value>(.*?)<\/value><\/Data>/);
+        if (idMatch) {
+          routeId = parseInt(idMatch[1]);
+        } else {
+          routeId = extractRouteId(routeName);
+        }
+        
+        // Determinar color de la ruta
+        let color = '#3B82F6'; // Color por defecto (azul)
+        if (notes && routeColors[notes]) {
+          color = routeColors[notes];
+        } else {
+          // Usar color basado en la zona si no hay color específico
+          const zone = determineZone(description);
+          color = zoneColors[zone];
+        }
+        
+        // Extraer coordenadas
+        const coordMatch = placemark.match(/<LineString><coordinates>([\s\S]*?)<\/coordinates><\/LineString>/);
+        if (!coordMatch) {
+          console.log(`No se encontraron coordenadas para la ruta ${routeName}`);
+          continue;
+        }
+        
+        // Procesar coordenadas (formato: longitud,latitud,altitud)
+        const coordsText = coordMatch[1].trim();
+        
+        // Dividir por saltos de línea
+        const lines = coordsText.split(/\n/).map(line => line.trim()).filter(line => line.length > 0);
+        
+        console.log(`Ruta ${routeName}: Encontradas ${lines.length} líneas de coordenadas`);
+        
+        const coordinates = lines
+          .map(line => {
+            const parts = line.split(',');
+            if (parts.length < 2) return null;
+            
+            const lon = parseFloat(parts[0]);
+            const lat = parseFloat(parts[1]);
+            
+            if (isNaN(lon) || isNaN(lat)) return null;
+            return [lon, lat] as [number, number];
+          })
+          .filter((coord): coord is [number, number] => coord !== null);
+          
+        console.log(`Ruta ${routeName}: ${coordinates.length} coordenadas válidas procesadas`);
+        
+        if (coordinates.length < 2) {
+          console.log(`La ruta ${routeName} no tiene suficientes coordenadas válidas`);
+          continue;
+        }
+        
+        // Generar horarios y frecuencia basados en los datos del KML
+        const schedule = generateSchedule(peakAM, midday, peakPM, night);
+        
+        // Determinar zona de la ruta
+        const zone = determineZone(description);
+        
+        // Crear objeto GeoJSON con el formato exacto de Mapaton.org
+        const geoJSON = {
+          type: "Feature",
+          properties: {
+            id: routeId,
+            name: routeName,
+            shortName: `R${routeId}`,
+            color: color
+          },
+          geometry: {
+            type: "LineString",
+            coordinates: coordinates
+          }
+        };
+        
+        console.log(`Procesando ruta: ${routeName} - ${description} (${coordinates.length} puntos)`);
+        
+        // Crear registro de la ruta en la base de datos
+        const route = await storage.createRoute({
+          name: routeName + (description ? ` - ${description}` : ''),
+          shortName: `R${routeId}`,
+          color: color,
+          frequency: schedule.frequency,
+          scheduleStart: schedule.start,
+          scheduleEnd: schedule.end,
+          stopsCount: Math.max(5, Math.min(15, Math.floor(coordinates.length / 40))),
+          approximateTime: `${Math.max(30, Math.min(90, Math.floor(coordinates.length / 10)))} minutos`,
+          zone: zone,
+          popular: routeCount < 15, // Las primeras 15 son populares
+          geoJSON: geoJSON
+        });
+        
+        console.log(`Ruta creada: ${route.name} (ID: ${route.id})`);
+        routeCount++;
+        
+        // Crear paradas de la ruta (origen, puntos intermedios, destino)
+        // Terminal origen
+        await storage.createStop({
+          routeId: route.id,
+          name: `Terminal ${description ? description.split('/')[0]?.trim() : 'Origen'}`,
+          latitude: coordinates[0][1].toString(),
+          longitude: coordinates[0][0].toString(),
+          isTerminal: true,
+          terminalType: 'first'
+        });
+        stopCount++;
+        
+        // Paradas intermedias (cada n puntos, dependiendo del tamaño de la ruta)
+        const numStops = Math.max(3, Math.min(15, Math.floor(coordinates.length / 40)));
+        const step = Math.floor(coordinates.length / (numStops + 1));
+        
+        for (let i = 1; i <= numStops; i++) {
+          const index = i * step;
+          if (index < coordinates.length - 1) {
+            await storage.createStop({
+              routeId: route.id,
+              name: `Parada ${i}`,
+              latitude: coordinates[index][1].toString(),
+              longitude: coordinates[index][0].toString(),
+              isTerminal: false,
+              terminalType: ''
+            });
+            stopCount++;
+          }
+        }
+        
+        // Terminal destino
+        const lastCoord = coordinates[coordinates.length - 1];
+        await storage.createStop({
+          routeId: route.id,
+          name: `Terminal ${description ? description.split('/').pop()?.trim() : 'Destino'}`,
+          latitude: lastCoord[1].toString(),
+          longitude: lastCoord[0].toString(),
+          isTerminal: true,
+          terminalType: 'last'
+        });
+        stopCount++;
+        
+      } catch (error) {
+        console.error('Error procesando placemark:', error);
+      }
     }
+    
+    console.log(`Importación completada: ${routeCount} rutas y ${stopCount} paradas importadas`);
+    return { routeCount, stopCount };
+    
+  } catch (error) {
+    console.error('Error procesando archivo KML:', error);
+    throw error;
   }
-  
-  // Segunda pasada: procesar las paradas (Point) y asociarlas a rutas
-  for (const placemark of placemarks) {
-    try {
-      // Verificar si es una parada (tiene Point) y no una ruta (LineString)
-      if (!placemark.includes('<Point>')) {
-        continue;
-      }
-      
-      // Extraer metadatos
-      let id = '', routeId = '', sequence = '', name = 'Parada';
-      
-      const idMatch = placemark.match(/<Data name="id"><value>(.*?)<\/value><\/Data>/);
-      if (idMatch) id = idMatch[1];
-      
-      const routeIdMatch = placemark.match(/<Data name="routeId"><value>(.*?)<\/value><\/Data>/);
-      if (routeIdMatch) routeId = routeIdMatch[1];
-      
-      const sequenceMatch = placemark.match(/<Data name="sequence"><value>(.*?)<\/value><\/Data>/);
-      if (sequenceMatch) sequence = sequenceMatch[1];
-      
-      // Extraer coordenadas
-      const coordMatch = placemark.match(/<Point><coordinates>(.*?)<\/coordinates><\/Point>/);
-      if (!coordMatch) {
-        continue;
-      }
-      
-      const parts = coordMatch[1].split(',');
-      if (parts.length < 2) {
-        continue;
-      }
-      
-      const lon = parseFloat(parts[0]);
-      const lat = parseFloat(parts[1]);
-      
-      if (isNaN(lon) || isNaN(lat)) {
-        continue;
-      }
-      
-      // Encontrar la ruta a la que pertenece
-      const route = routes.find(r => r.geoJSON?.properties?.id.toString() === routeId);
-      if (!route) {
-        continue;
-      }
-      
-      // Determinar si es terminal basado en la secuencia
-      const isTerminal = sequence === '0' || (parseInt(sequence) >= 10);
-      const terminalType = sequence === '0' ? 'first' : (parseInt(sequence) >= 10 ? 'last' : '');
-      
-      if (isTerminal) {
-        name = `Terminal ${route.name.split('-')[0].trim()}`;
-      } else {
-        name = `Parada ${sequence}`;
-      }
-      
-      // Crear parada
-      await storage.createStop({
-        routeId: route.id,
-        name: name,
-        latitude: lat.toString(),
-        longitude: lon.toString(),
-        isTerminal: isTerminal,
-        terminalType: terminalType
-      });
-      
-      stopCount++;
-    } catch (err) {
-      console.error('Error procesando parada:', err);
-    }
-  }
-  
-  console.log(`Importación de KML completa. ${routeCount} rutas y ${stopCount} paradas importadas.`);
-  return { routeCount, stopCount };
 }
 
-// Función auxiliar para extraer el ID de la ruta
+// Extraer ID de ruta del nombre (ejemplo: "Ruta 10001" -> 10001)
 function extractRouteId(name: string): number {
-  // Buscar patrones como "Ruta 10001"
-  const match = name.match(/Ruta\s+(\d+)/i);
+  const match = name.match(/(\d+)/);
   if (match) {
     return parseInt(match[1]);
   }
-  
-  // Si no encuentra el formato esperado, extraer cualquier número en el nombre
-  const numMatch = name.match(/(\d+)/);
-  if (numMatch) {
-    return parseInt(numMatch[1]);
-  }
-  
-  // Si no hay números, generar un ID aleatorio
-  return Math.floor(Math.random() * 1000) + 1000;
+  return Math.floor(Math.random() * 90000) + 10000; // ID aleatorio entre 10000 y 99999
 }
 
-// Función para determinar la zona basada en la descripción
+// Determinar zona basada en la descripción de la ruta
 function determineZone(desc: string): string {
-  const zones = ['norte', 'sur', 'este', 'oeste', 'centro'];
+  if (!desc) return 'centro';
   
   const descLower = desc.toLowerCase();
   
-  if (descLower.includes('camacho') || descLower.includes('lomas verdes') || descLower.includes('animas')) {
+  if (descLower.includes('camacho') || descLower.includes('animas') || descLower.includes('lomas')) {
     return 'norte';
-  } else if (descLower.includes('sumidero') || descLower.includes('coapexpan')) {
-    return 'oeste';
-  } else if (descLower.includes('zona uv') || descLower.includes('universidad')) {
+  } else if (descLower.includes('trancas') || descLower.includes('2000') || descLower.includes('arco sur')) {
+    return 'sur';
+  } else if (descLower.includes('universidad') || descLower.includes('uv') || descLower.includes('rebsamen')) {
     return 'este';
   } else if (descLower.includes('centro')) {
     return 'centro';
-  } else if (descLower.includes('trancas') || descLower.includes('xalapa 2000')) {
-    return 'sur';
+  } else if (descLower.includes('coapexpan') || descLower.includes('sumidero')) {
+    return 'oeste';
   }
   
-  // Si no podemos determinar, asignar aleatoriamente
-  return zones[Math.floor(Math.random() * zones.length)];
+  return 'centro';
 }
 
-// Función para generar horarios basados en la información de frecuencias
+// Generar horarios y frecuencia basados en los datos del KML
 function generateSchedule(peakAM: string, midday: string, peakPM: string, night: string): { 
+  frequency: string, 
   start: string, 
-  end: string, 
-  frequency: string,
-  approximateTime: string 
+  end: string 
 } {
-  // Convertir a números, o usar valores predeterminados si no hay datos
-  const peakAMMin = parseInt(peakAM) || 10;
-  const middayMin = parseInt(midday) || 15;
-  const peakPMMin = parseInt(peakPM) || 10;
-  const nightMin = parseInt(night) || 20;
+  // Horario de inicio y fin estándar
+  let start = '05:30 AM';
+  let end = '10:30 PM';
   
-  // Calcular la frecuencia promedio (redondeada a 5 min)
-  const avgFrequency = Math.round((peakAMMin + middayMin + peakPMMin + nightMin) / 4 / 5) * 5;
+  // Calcular frecuencia en minutos basada en los valores del KML
+  let frequency = '15 minutos';
+  try {
+    const peakAMValue = parseInt(peakAM) || 15;
+    const middayValue = parseInt(midday) || 20;
+    const peakPMValue = parseInt(peakPM) || 15;
+    const nightValue = parseInt(night) || 25;
+    
+    // Promediar valores para obtener frecuencia general
+    const avgFrequency = Math.round((peakAMValue + middayValue + peakPMValue + nightValue) / 4);
+    frequency = `${avgFrequency} minutos`;
+    
+    // Ajustar horarios según los valores
+    if (peakAMValue > 30 || nightValue > 40) {
+      start = '06:00 AM';
+      end = '09:00 PM';
+    } else if (peakAMValue < 10 && nightValue < 20) {
+      start = '05:00 AM';
+      end = '11:00 PM';
+    }
+  } catch (e) {
+    console.warn('Error al calcular frecuencia, usando valores por defecto');
+  }
   
-  // Ajustar los horarios de inicio y fin basados en el servicio nocturno
-  let startTime = '05:30 AM';
-  let endTime = nightMin > 0 ? '10:30 PM' : '09:00 PM';
-  
-  // Tiempo aproximado de viaje (estimación)
-  const approximateTime = `${30 + Math.floor(Math.random() * 30)} minutos`;
-  
-  return {
-    start: startTime,
-    end: endTime,
-    frequency: `${avgFrequency} minutos`,
-    approximateTime
-  };
+  return { frequency, start, end };
 }
 
-// Función principal para importar todos los datos
+// Función principal para importar todas las rutas
 async function importAllRoutes() {
-  console.log('Iniciando importación de todas las rutas...');
+  console.log('Iniciando importación de todas las rutas desde el archivo KML...');
   
   try {
-    // Limpiar datos existentes
-    await db.delete(busStops);
-    await db.delete(busRoutes);
-    console.log('Datos anteriores eliminados.');
+    // Procesar el archivo KML
+    const result = await processKmlFile(KML_FILE_PATH);
     
-    // Procesar archivo KML
-    console.log('Procesando archivo KML principal...');
-    const kmlResults = await processKmlFile(KML_FILE_PATH);
-    
-    console.log(`Importación completa. Total: ${kmlResults.routeCount} rutas y ${kmlResults.stopCount} paradas.`);
+    console.log(`Importación exitosa: ${result.routeCount} rutas y ${result.stopCount} paradas`);
+    return result;
   } catch (error) {
     console.error('Error en la importación:', error);
+    throw error;
   }
 }
 
@@ -353,7 +342,7 @@ async function importAllRoutes() {
 async function main() {
   try {
     await importAllRoutes();
-    console.log('Proceso de importación completado con éxito.');
+    console.log('Proceso de importación completado con éxito');
     process.exit(0);
   } catch (error) {
     console.error('Error fatal en el proceso de importación:', error);
