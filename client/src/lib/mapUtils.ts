@@ -25,12 +25,14 @@ export function initializeMap(container: HTMLElement, center: [number, number], 
 }
 
 // Get bus stop icon
-export function getBusStopIcon(isTerminal: boolean, color: string = '#ffffff'): L.DivIcon {
-  const size = isTerminal ? 14 : 8;
+export function getBusStopIcon(isTerminal: boolean | null, color: string = '#ffffff'): L.DivIcon {
+  // En caso de que isTerminal sea null, tratarlo como false
+  const isActuallyTerminal = isTerminal === true;
+  const size = isActuallyTerminal ? 14 : 8;
   
   return L.divIcon({
     className: 'bus-stop-icon',
-    html: `<div class="w-full h-full rounded-full bg-white shadow-md border-2" style="border-color: ${isTerminal ? color : 'white'}"></div>`,
+    html: `<div class="w-full h-full rounded-full bg-white shadow-md border-2" style="border-color: ${isActuallyTerminal ? color : 'white'}"></div>`,
     iconSize: [size, size],
     iconAnchor: [size/2, size/2]
   });
@@ -241,15 +243,17 @@ export function addBusStops(
   stops: Array<{
     latitude: string;
     longitude: string;
-    isTerminal: boolean;
+    isTerminal: boolean | null;
     name: string;
+    [key: string]: any; // Permitir otras propiedades
   }>,
   color: string
 ): L.Marker[] {
   const markers: L.Marker[] = [];
   
   stops.forEach((stop) => {
-    const isTerminal = stop.isTerminal;
+    // Asegurar que isTerminal es un booleano
+    const isTerminal = stop.isTerminal === true;
     const icon = getBusStopIcon(isTerminal, color);
     const lat = parseFloat(stop.latitude);
     const lng = parseFloat(stop.longitude);
@@ -266,6 +270,7 @@ export function addBusStops(
       <div class="text-sm font-medium">
         <div class="font-bold">${stop.name}</div>
         <div class="text-xs text-gray-600">Ruta ID: ${routeId}</div>
+        ${stop.terminalType ? `<div class="text-xs">${stop.terminalType === 'first' ? 'Terminal de origen' : 'Terminal de destino'}</div>` : ''}
       </div>
     `);
     
