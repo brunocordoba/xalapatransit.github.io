@@ -12,6 +12,16 @@ if (!MAPBOX_ACCESS_TOKEN) {
   process.exit(1);
 }
 
+// Interfaz para la respuesta de Mapbox
+interface MapboxResponse {
+  code: string;
+  matchings?: Array<{
+    geometry: {
+      coordinates: [number, number][];
+    };
+  }>;
+}
+
 // Función para ajustar una ruta a las calles usando la API de Mapbox Map Matching
 async function snapToRoads(coordinates: [number, number][]): Promise<[number, number][]> {
   try {
@@ -66,14 +76,7 @@ async function performSnapRequest(coordinates: [number, number][]): Promise<[num
   
   try {
     const response = await fetch(url);
-    const data = await response.json() as {
-      code: string;
-      matchings?: Array<{
-        geometry: {
-          coordinates: [number, number][];
-        };
-      }>;
-    };
+    const data = await response.json() as MapboxResponse;
     
     if (data.code !== 'Ok' || !data.matchings || data.matchings.length === 0) {
       console.warn('La API de mapeo no pudo hacer match:', data);
