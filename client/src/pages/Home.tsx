@@ -9,7 +9,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function Home() {
   const isMobile = useIsMobile();
-  const [showSidebar, setShowSidebar] = useState(!isMobile);
+  const [showSidebar, setShowSidebar] = useState(true); // Siempre visible por defecto
   const [selectedRouteId, setSelectedRouteId] = useState<number | null>(null);
   const [selectedZone, setSelectedZone] = useState<string>('all');
 
@@ -37,7 +37,8 @@ export default function Home() {
 
   const handleRouteSelect = (routeId: number) => {
     setSelectedRouteId(routeId);
-    if (isMobile) {
+    // En dispositivos móviles, solo ocultamos el panel si no estaba seleccionada ninguna ruta
+    if (isMobile && selectedRouteId === null) {
       setShowSidebar(false);
     }
   };
@@ -50,10 +51,14 @@ export default function Home() {
     setSelectedZone(zone);
   };
 
-  // Update sidebar visibility when screen size changes
-  useEffect(() => {
-    setShowSidebar(!isMobile);
-  }, [isMobile]);
+  // Función para limpiar selección de rutas
+  const handleClearSelection = () => {
+    setSelectedRouteId(null);
+    // Asegurarse de que el panel lateral sea visible después de limpiar
+    if (isMobile) {
+      setShowSidebar(true);
+    }
+  };
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
@@ -65,8 +70,10 @@ export default function Home() {
           popularRoutes={popularRoutes}
           allRoutes={filteredRoutes || []}
           selectedZone={selectedZone}
+          selectedRouteId={selectedRouteId}
           onZoneSelect={handleZoneSelect}
           onRouteSelect={handleRouteSelect}
+          onClearSelection={handleClearSelection}
           isLoading={routesLoading}
         />
         
@@ -77,6 +84,7 @@ export default function Home() {
           isSidebarVisible={showSidebar}
           isMobile={isMobile}
           onRouteSelect={handleRouteSelect}
+          onClearSelection={handleClearSelection}
         />
         
         {selectedRoute && (

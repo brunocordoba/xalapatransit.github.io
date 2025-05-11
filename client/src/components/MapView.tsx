@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Plus, Minus, MapPin, Menu } from 'lucide-react';
+import { Plus, Minus, MapPin, Menu, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BusRoute, BusStop } from '@shared/schema';
 import { initializeMap, addBusStops } from '@/lib/mapUtils';
@@ -14,6 +14,7 @@ type MapViewProps = {
   isSidebarVisible: boolean;
   isMobile: boolean;
   onRouteSelect?: (routeId: number) => void;
+  onClearSelection: () => void;
 };
 
 // Función auxiliar para dibujar una sola ruta
@@ -153,7 +154,8 @@ export default function MapView({
   toggleSidebar, 
   isSidebarVisible,
   isMobile,
-  onRouteSelect 
+  onRouteSelect,
+  onClearSelection
 }: MapViewProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -282,6 +284,9 @@ export default function MapView({
   // Añadir paradas al mapa con optimización
   useEffect(() => {
     if (!mapReady || !mapInstanceRef.current || !selectedRouteId) {
+      // Limpiar marcadores anteriores si no hay ruta seleccionada
+      stopMarkersRef.current.forEach(marker => marker.remove());
+      stopMarkersRef.current = [];
       return;
     }
     
@@ -370,6 +375,16 @@ export default function MapView({
         >
           <MapPin className="h-6 w-6 text-gray-700" />
         </Button>
+        {selectedRouteId && (
+          <Button
+            variant="outline"
+            size="icon"
+            className="bg-white p-2 rounded-full shadow-md hover:bg-red-100"
+            onClick={onClearSelection}
+          >
+            <XCircle className="h-6 w-6 text-red-500" />
+          </Button>
+        )}
       </div>
     </div>
   );

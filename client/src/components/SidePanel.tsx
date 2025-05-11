@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { SearchIcon } from 'lucide-react';
+import { SearchIcon, XCircle, MapPin } from 'lucide-react';
 import { BusRoute } from '@shared/schema';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,8 +11,10 @@ type SidePanelProps = {
   popularRoutes: BusRoute[];
   allRoutes: BusRoute[];
   selectedZone: string;
+  selectedRouteId: number | null;
   onZoneSelect: (zone: string) => void;
   onRouteSelect: (routeId: number) => void;
+  onClearSelection: () => void;
   isLoading: boolean;
 };
 
@@ -21,8 +23,10 @@ export default function SidePanel({
   popularRoutes, 
   allRoutes,
   selectedZone,
+  selectedRouteId,
   onZoneSelect,
   onRouteSelect,
+  onClearSelection,
   isLoading 
 }: SidePanelProps) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -43,7 +47,7 @@ export default function SidePanel({
                   md:translate-x-0 h-full flex flex-col`}
     >
       <div className="p-4 border-b">
-        <div className="relative">
+        <div className="relative mb-2">
           <Input 
             type="text" 
             placeholder="Buscar ruta o destino..." 
@@ -52,6 +56,28 @@ export default function SidePanel({
             onChange={handleSearch}
           />
           <SearchIcon className="h-5 w-5 absolute left-3 top-3 text-gray-400" />
+        </div>
+        
+        {/* Botón para borrar la selección de rutas */}
+        <div className="flex justify-between items-center mt-2">
+          <Button 
+            onClick={onClearSelection}
+            variant="outline"
+            className={`px-3 py-1 text-sm gap-1 ${selectedRouteId ? 'clear-selection' : 'text-gray-400'}`}
+            disabled={!selectedRouteId}
+          >
+            <XCircle className="h-4 w-4" />
+            <span>Mostrar todas las rutas</span>
+          </Button>
+          
+          <Button 
+            variant="outline"
+            className="px-3 py-1 text-sm"
+            onClick={() => {}} 
+          >
+            <MapPin className="h-4 w-4 mr-1" />
+            Mi ubicación
+          </Button>
         </div>
       </div>
       
@@ -76,7 +102,8 @@ export default function SidePanel({
                 popularRoutes.map(route => (
                   <div 
                     key={route.id} 
-                    className="p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer flex items-center space-x-3"
+                    className={`p-3 rounded-lg border ${selectedRouteId === route.id ? 'bg-blue-50 border-blue-300' : 'border-gray-200 hover:bg-gray-50'} 
+                              cursor-pointer flex items-center space-x-3`}
                     onClick={() => onRouteSelect(route.id)}
                   >
                     <div 
@@ -142,7 +169,8 @@ export default function SidePanel({
                 filteredRoutes.map(route => (
                   <div 
                     key={route.id} 
-                    className="p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer flex items-center space-x-3"
+                    className={`p-3 rounded-lg border ${selectedRouteId === route.id ? 'bg-blue-50 border-blue-300' : 'border-gray-200 hover:bg-gray-50'} 
+                              cursor-pointer flex items-center space-x-3`}
                     onClick={() => onRouteSelect(route.id)}
                   >
                     <div 
