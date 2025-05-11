@@ -16,7 +16,14 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   async getAllRoutes(): Promise<BusRoute[]> {
-    return await db.select().from(busRoutes);
+    const routes = await db.select().from(busRoutes);
+    
+    // Ordenar rutas por el número secuencial en el nombre (1., 2., 3., etc.)
+    return routes.sort((a, b) => {
+      const numA = parseInt(a.name.split('.')[0]) || 0;
+      const numB = parseInt(b.name.split('.')[0]) || 0;
+      return numA - numB;
+    });
   }
 
   async getRoute(id: number): Promise<BusRoute | undefined> {
@@ -25,11 +32,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getRoutesByZone(zone: string): Promise<BusRoute[]> {
+    let routes: BusRoute[];
+    
     if (zone === 'all') {
-      return await db.select().from(busRoutes);
+      routes = await db.select().from(busRoutes);
     } else {
-      return await db.select().from(busRoutes).where(eq(busRoutes.zone, zone));
+      routes = await db.select().from(busRoutes).where(eq(busRoutes.zone, zone));
     }
+    
+    // Ordenar rutas por el número secuencial en el nombre (1., 2., 3., etc.)
+    return routes.sort((a, b) => {
+      const numA = parseInt(a.name.split('.')[0]) || 0;
+      const numB = parseInt(b.name.split('.')[0]) || 0;
+      return numA - numB;
+    });
   }
 
   async getStopsByRouteId(routeId: number): Promise<BusStop[]> {
