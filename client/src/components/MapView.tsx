@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Plus, Minus, MapPin, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { BusRoute } from '@shared/schema';
-import { initializeMap, drawRoutes, highlightRoute, getBusStopIcon } from '@/lib/mapUtils';
+import { BusRoute, BusStop } from '@shared/schema';
+import { initializeMap, drawRoutes, highlightRoute, addBusStops } from '@/lib/mapUtils';
 import { XALAPA_CENTER, DEFAULT_ZOOM } from '@/lib/constants';
+import { useQuery } from '@tanstack/react-query';
 
 type MapViewProps = {
   routes: BusRoute[];
@@ -25,8 +26,23 @@ export default function MapView({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const routeLayersRef = useRef<Record<number, L.Polyline>>({});
+  const stopMarkersRef = useRef<L.Marker[]>([]);
   
   const [mapReady, setMapReady] = useState(false);
+  
+  // Cargar las paradas para la ruta seleccionada
+  const { data: stops } = useQuery<BusStop[]>({
+    queryKey: ['stops', selectedRouteId],
+    queryFn: async () => {
+      if (!selectedRouteId) return [];
+      const response = await fetch(`/api/routes/${selectedRouteId}/stops`);
+      if (!response.ok) {
+        throw new Error('Error al cargar las paradas');
+      }
+      return response.json();
+    },
+    enabled: !!selectedRouteId && mapReady
+  });
   
   // Initialize map
   useEffect(() => {
@@ -65,6 +81,34 @@ export default function MapView({
       highlightRoute(mapInstanceRef.current, routeLayersRef.current, selectedRouteId);
     }
   }, [mapReady, selectedRouteId, routes]);
+  
+  // Add bus stops to map when a route is selected and stops are loaded
+  useEffect(() => {
+    if (!mapReady || !mapInstanceRef.current || !selectedRouteId || !stops || stops.length === 0) {
+      return;
+    }
+    
+    // Clear previous stop markers
+    stopMarkersRef.current.forEach(marker => marker.remove());
+    stopMarkersRef.current = [];
+    
+    // Find selected route
+    const selectedRoute = routes.find(route => route.id === selectedRouteId);
+    if (!selectedRoute) return;
+    
+    console.log(`Mostrando ${stops.length} paradas para la ruta ${selectedRouteId}`);
+    
+    // Add new stop markers
+    const newMarkers = addBusStops(
+      mapInstanceRef.current,
+      selectedRouteId,
+      stops,
+      selectedRoute.color
+    );
+    
+    stopMarkersRef.current = newMarkers;
+    
+  }, [mapReady, selectedRouteId, stops, routes]);
   
   const handleZoomIn = () => {
     if (mapInstanceRef.current) {

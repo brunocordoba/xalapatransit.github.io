@@ -14,14 +14,14 @@ export function initializeMap(container: HTMLElement, center: [number, number], 
 }
 
 // Get bus stop icon
-export function getBusStopIcon(isTerminal: boolean, color: string): L.DivIcon {
-  const size = isTerminal ? 10 : 6;
-  const terminalClass = isTerminal ? 'border-2' : 'border';
+export function getBusStopIcon(isTerminal: boolean, color: string = '#ffffff'): L.DivIcon {
+  const size = isTerminal ? 14 : 8;
   
   return L.divIcon({
     className: 'bus-stop-icon',
-    html: `<div class="w-${size/2} h-${size/2} rounded-full bg-white ${terminalClass} border-gray-700" style="border-color: ${color}"></div>`,
-    iconSize: [size, size]
+    html: `<div class="w-full h-full rounded-full bg-white shadow-md border-2" style="border-color: ${isTerminal ? color : 'white'}"></div>`,
+    iconSize: [size, size],
+    iconAnchor: [size/2, size/2]
   });
 }
 
@@ -172,16 +172,37 @@ export function highlightRoute(
 export function addBusStops(
   map: L.Map, 
   routeId: number,
-  coordinates: [number, number][],
+  stops: Array<{
+    latitude: string;
+    longitude: string;
+    isTerminal: boolean;
+    name: string;
+  }>,
   color: string
 ): L.Marker[] {
   const markers: L.Marker[] = [];
   
-  coordinates.forEach((coord, index) => {
-    const isTerminal = index === 0 || index === coordinates.length - 1;
+  stops.forEach((stop) => {
+    const isTerminal = stop.isTerminal;
     const icon = getBusStopIcon(isTerminal, color);
+    const lat = parseFloat(stop.latitude);
+    const lng = parseFloat(stop.longitude);
     
-    const marker = L.marker(coord, { icon }).addTo(map);
+    if (isNaN(lat) || isNaN(lng)) {
+      console.warn(`Coordenadas inválidas para parada ${stop.name}: ${stop.latitude}, ${stop.longitude}`);
+      return;
+    }
+    
+    const marker = L.marker([lat, lng], { icon }).addTo(map);
+    
+    // Agregar popup con información de la parada
+    marker.bindPopup(`
+      <div class="text-sm font-medium">
+        <div class="font-bold">${stop.name}</div>
+        <div class="text-xs text-gray-600">Ruta ID: ${routeId}</div>
+      </div>
+    `);
+    
     markers.push(marker);
   });
   
