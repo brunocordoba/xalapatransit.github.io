@@ -21,7 +21,7 @@ export const busRoutes = pgTable("bus_routes", {
 
 export const busStops = pgTable("bus_stops", {
   id: serial("id").primaryKey(),
-  routeId: integer("route_id").notNull(),
+  routeId: integer("route_id").notNull().references(() => busRoutes.id),
   name: text("name").notNull(),
   latitude: text("latitude").notNull(),
   longitude: text("longitude").notNull(),

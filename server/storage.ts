@@ -1,5 +1,7 @@
-import { BusRoute, BusStop, type InsertBusRoute, type InsertBusStop } from "@shared/schema";
+import { BusRoute, BusStop, busRoutes, busStops, type InsertBusRoute, type InsertBusStop } from "@shared/schema";
 import { mockRoutes } from "./data/routes";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {
@@ -9,32 +11,54 @@ export interface IStorage {
   getStopsByRouteId(routeId: number): Promise<BusStop[]>;
   createRoute(route: InsertBusRoute): Promise<BusRoute>;
   createStop(stop: InsertBusStop): Promise<BusStop>;
+  initializeData(): Promise<void>;
 }
 
-export class MemStorage implements IStorage {
-  private routes: Map<number, BusRoute>;
-  private stops: Map<number, BusStop>;
-  private routeIdCounter: number;
-  private stopIdCounter: number;
-
-  constructor() {
-    this.routes = new Map();
-    this.stops = new Map();
-    this.routeIdCounter = 1;
-    this.stopIdCounter = 1;
-    
-    // Initialize with mock data
-    this.initializeMockData();
+export class DatabaseStorage implements IStorage {
+  async getAllRoutes(): Promise<BusRoute[]> {
+    return await db.select().from(busRoutes);
   }
 
-  private initializeMockData() {
+  async getRoute(id: number): Promise<BusRoute | undefined> {
+    const result = await db.select().from(busRoutes).where(eq(busRoutes.id, id));
+    return result.length > 0 ? result[0] : undefined;
+  }
+
+  async getRoutesByZone(zone: string): Promise<BusRoute[]> {
+    if (zone === 'all') {
+      return await db.select().from(busRoutes);
+    } else {
+      return await db.select().from(busRoutes).where(eq(busRoutes.zone, zone));
+    }
+  }
+
+  async getStopsByRouteId(routeId: number): Promise<BusStop[]> {
+    return await db.select().from(busStops).where(eq(busStops.routeId, routeId));
+  }
+
+  async createRoute(insertRoute: InsertBusRoute): Promise<BusRoute> {
+    const result = await db.insert(busRoutes).values(insertRoute).returning();
+    return result[0];
+  }
+
+  async createStop(insertStop: InsertBusStop): Promise<BusStop> {
+    const result = await db.insert(busStops).values(insertStop).returning();
+    return result[0];
+  }
+
+  async initializeData(): Promise<void> {
+    // Check if data already exists
+    const existingRoutes = await db.select().from(busRoutes);
+    if (existingRoutes.length > 0) {
+      console.log("Database already contains data. Skipping initialization.");
+      return;
+    }
+
+    console.log("Initializing database with mock data...");
+
     // Load routes from mock data
-    mockRoutes.forEach(routeData => {
-      const route: BusRoute = {
-        id: this.routeIdCounter++,
-        ...routeData
-      };
-      this.routes.set(route.id, route);
+    for (const routeData of mockRoutes) {
+      const route = await this.createRoute(routeData);
       
       // Generate stops for each route
       if (routeData.geoJSON && (routeData.geoJSON as any).geometry && (routeData.geoJSON as any).geometry.coordinates) {
@@ -43,84 +67,46 @@ export class MemStorage implements IStorage {
         // Create terminal stops at the beginning and end
         if (coordinates.length > 0) {
           // First terminal
-          const firstStop: BusStop = {
-            id: this.stopIdCounter++,
+          await this.createStop({
             routeId: route.id,
             name: `Terminal ${routeData.name.split('-')[0].trim()}`,
             latitude: coordinates[0][0].toString(),
             longitude: coordinates[0][1].toString(),
             isTerminal: true,
             terminalType: 'first'
-          };
-          this.stops.set(firstStop.id, firstStop);
+          });
           
           // Add some intermediate stops (sample every n-th coordinate)
           const step = Math.max(1, Math.floor(coordinates.length / 8));
           for (let i = step; i < coordinates.length - step; i += step) {
             const stopName = `Parada ${i}`;
-            const stop: BusStop = {
-              id: this.stopIdCounter++,
+            await this.createStop({
               routeId: route.id,
               name: stopName,
               latitude: coordinates[i][0].toString(),
               longitude: coordinates[i][1].toString(),
               isTerminal: false,
               terminalType: ''
-            };
-            this.stops.set(stop.id, stop);
+            });
           }
           
           // Last terminal
           if (coordinates.length > 1) {
-            const lastStop: BusStop = {
-              id: this.stopIdCounter++,
+            await this.createStop({
               routeId: route.id,
               name: `Terminal ${routeData.name.split('→')[1]?.trim() || 'Final'}`,
               latitude: coordinates[coordinates.length - 1][0].toString(),
               longitude: coordinates[coordinates.length - 1][1].toString(),
               isTerminal: true,
               terminalType: 'last'
-            };
-            this.stops.set(lastStop.id, lastStop);
+            });
           }
         }
       }
-    });
-  }
+    }
 
-  async getAllRoutes(): Promise<BusRoute[]> {
-    return Array.from(this.routes.values());
-  }
-
-  async getRoute(id: number): Promise<BusRoute | undefined> {
-    return this.routes.get(id);
-  }
-
-  async getRoutesByZone(zone: string): Promise<BusRoute[]> {
-    return Array.from(this.routes.values()).filter(route => 
-      zone === 'all' || route.zone === zone
-    );
-  }
-
-  async getStopsByRouteId(routeId: number): Promise<BusStop[]> {
-    return Array.from(this.stops.values()).filter(stop => 
-      stop.routeId === routeId
-    );
-  }
-
-  async createRoute(insertRoute: InsertBusRoute): Promise<BusRoute> {
-    const id = this.routeIdCounter++;
-    const route: BusRoute = { ...insertRoute, id };
-    this.routes.set(id, route);
-    return route;
-  }
-
-  async createStop(insertStop: InsertBusStop): Promise<BusStop> {
-    const id = this.stopIdCounter++;
-    const stop: BusStop = { ...insertStop, id };
-    this.stops.set(id, stop);
-    return stop;
+    console.log("Database initialization completed.");
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
