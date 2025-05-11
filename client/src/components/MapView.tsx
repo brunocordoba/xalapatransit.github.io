@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Plus, Minus, MapPin, Menu, Layers, Eye } from 'lucide-react';
+import { Plus, Minus, MapPin, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BusRoute, BusStop } from '@shared/schema';
 import { initializeMap, drawRoutes, highlightRoute, addBusStops, RouteLayers } from '@/lib/mapUtils';
@@ -30,31 +30,19 @@ export default function MapView({
   const stopMarkersRef = useRef<L.Marker[]>([]);
   
   const [mapReady, setMapReady] = useState(false);
-  const [showAllRoutes, setShowAllRoutes] = useState(true);
   
   // Cargar las paradas para la ruta seleccionada
   const { data: stops } = useQuery<BusStop[]>({
     queryKey: ['stops', selectedRouteId],
     queryFn: async () => {
       if (!selectedRouteId) return [];
-      try {
-        const response = await fetch(`/api/routes/${selectedRouteId}/stops`);
-        if (!response.ok) {
-          console.warn(`No se pudieron cargar paradas para la ruta ${selectedRouteId}`);
-          return [];
-        }
-        const data = await response.json();
-        return Array.isArray(data) ? data : [];
-      } catch (error) {
-        console.error(`Error al cargar paradas: ${error}`);
-        return [];
+      const response = await fetch(`/api/routes/${selectedRouteId}/stops`);
+      if (!response.ok) {
+        throw new Error('Error al cargar las paradas');
       }
+      return response.json();
     },
-    enabled: !!selectedRouteId && mapReady,
-    // Añadir opciones de caché y reintento para mejorar rendimiento
-    staleTime: 300000, // 5 minutos
-    retry: 1,
-    retryDelay: 1000
+    enabled: !!selectedRouteId && mapReady
   });
   
   // Initialize map
@@ -76,7 +64,7 @@ export default function MapView({
   // Variable para almacenar un identificador de timeout para debouncing
   const drawTimeoutRef = useRef<number | null>(null);
   
-  // Dibujar todas las rutas en el mapa con optimización avanzada
+  // Dibujar todas las rutas en el mapa con optimización
   useEffect(() => {
     if (mapReady && mapInstanceRef.current && routes.length > 0) {
       // Debounce para evitar múltiples renderizados en cambios rápidos
@@ -84,85 +72,22 @@ export default function MapView({
         window.clearTimeout(drawTimeoutRef.current);
       }
       
-      // Indicar visualmente que estamos cargando
-      if (mapInstanceRef.current.getContainer()) {
-        mapInstanceRef.current.getContainer().classList.add('loading-routes');
-      }
+      // Usar un loading state para indicar que estamos dibujando
+      mapInstanceRef.current.getContainer().classList.add('loading-routes');
       
-      // Dibujar rutas con un retraso para evitar bloqueo de UI
+      // Dibujar rutas con un leve retraso para permitir al DOM actualizarse
       drawTimeoutRef.current = window.setTimeout(() => {
-        try {
-          console.log(`Dibujando ${routes.length} rutas en el mapa`);
-          
-          // Si hay demasiadas rutas, aplicar muestreo para mejorar rendimiento
-          let routesToRender = routes;
-          if (routes.length > 100 && !selectedRouteId) {
-            // Tomar sólo rutas populares y una muestra del resto
-            const popularRoutes = routes.filter(r => r.popular);
-            const otherRoutes = routes.filter(r => !r.popular);
-            const sampleSize = Math.min(50, otherRoutes.length);
-            const sampledRoutes = otherRoutes
-              .sort(() => 0.5 - Math.random()) // Mezclar aleatoriamente
-              .slice(0, sampleSize);
-            
-            routesToRender = [...popularRoutes, ...sampledRoutes];
-            console.log(`Optimizando: mostrando ${routesToRender.length} de ${routes.length} rutas`);
+        const { layers, map } = drawRoutes(mapInstanceRef.current!, routes, (routeId) => {
+          // Cuando se hace clic en una ruta, manejar la selección
+          if (routeId !== selectedRouteId && onRouteSelect) {
+            onRouteSelect(routeId);
           }
-          
-          // Dibujar las rutas con la función optimizada, pasando el ID de ruta seleccionada
-          // MEJORA: Si no queremos mostrar todas las rutas, solo dibujamos la ruta seleccionada
-          const routeIdForFiltering = (!showAllRoutes && selectedRouteId) ? selectedRouteId : null;
-          
-          console.log(`DIBUJANDO RUTAS: selectedRouteId=${selectedRouteId}, showAllRoutes=${showAllRoutes}, routeIdForFiltering=${routeIdForFiltering}`);
-          
-          const { layers, map } = drawRoutes(
-            mapInstanceRef.current!, 
-            routesToRender, 
-            (routeId) => {
-              // Cuando se hace clic en una ruta, manejar la selección
-              if (routeId !== selectedRouteId && onRouteSelect) {
-                onRouteSelect(routeId);
-              }
-            },
-            routeIdForFiltering // Filtrar solo si tenemos ruta seleccionada Y no queremos mostrar todas
-          );
-          
-          routeLayersRef.current = layers;
-          
-          // Si hay una ruta seleccionada, asegurarse de que esté visible
-          if (selectedRouteId && !routeLayersRef.current[selectedRouteId] && routes.find(r => r.id === selectedRouteId)) {
-            console.log(`Añadiendo ruta seleccionada ${selectedRouteId} que faltaba`);
-            const selectedRoute = routes.find(r => r.id === selectedRouteId);
-            if (selectedRoute) {
-              const singleResult = drawRoutes(
-                mapInstanceRef.current!, 
-                [selectedRoute], 
-                (routeId) => {
-                  if (onRouteSelect) onRouteSelect(routeId);
-                },
-                selectedRouteId // Siempre pasamos el ID para esa ruta específica
-              );
-              routeLayersRef.current[selectedRouteId] = singleResult.layers[selectedRouteId];
-              
-              // Forzar aplicación de visibilidad
-              if (!showAllRoutes) {
-                console.log(`Aplicando ocultar rutas inmediatamente después de añadir la ruta seleccionada ${selectedRouteId}`);
-                setTimeout(() => {
-                  highlightRoute(mapInstanceRef.current!, routeLayersRef.current, selectedRouteId, false);
-                }, 10);
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Error al dibujar rutas:', error);
-        } finally {
-          // Siempre quitar el estado de carga
-          if (mapInstanceRef.current && mapInstanceRef.current.getContainer()) {
-            mapInstanceRef.current.getContainer().classList.remove('loading-routes');
-          }
-          drawTimeoutRef.current = null;
-        }
-      }, 100); // Aumentar ligeramente el retraso para evitar bloqueo de UI
+        });
+        
+        routeLayersRef.current = layers;
+        mapInstanceRef.current!.getContainer().classList.remove('loading-routes');
+        drawTimeoutRef.current = null;
+      }, 50);
     }
     
     // Limpieza en desmontaje
@@ -171,43 +96,14 @@ export default function MapView({
         window.clearTimeout(drawTimeoutRef.current);
       }
     };
-  }, [mapReady, routes, selectedRouteId, showAllRoutes, onRouteSelect]);
+  }, [mapReady, routes, selectedRouteId, onRouteSelect]);
   
   // Destacar la ruta seleccionada con optimización
   useEffect(() => {
     if (mapReady && mapInstanceRef.current && routes.length > 0 && Object.keys(routeLayersRef.current).length > 0) {
-      console.log(`MAPA: Actualizando visibilidad de rutas. Ruta seleccionada: ${selectedRouteId}, mostrar todas: ${showAllRoutes}`);
-      highlightRoute(mapInstanceRef.current, routeLayersRef.current, selectedRouteId, showAllRoutes);
+      highlightRoute(mapInstanceRef.current, routeLayersRef.current, selectedRouteId);
     }
-  }, [mapReady, selectedRouteId, showAllRoutes]); // Añadimos showAllRoutes como dependencia
-  
-  // Cuando se selecciona una ruta, cambiar automáticamente a modo "solo esta ruta"
-  useEffect(() => {
-    // Siempre que haya una ruta seleccionada, OCULTAMOS todas las demás
-    if (selectedRouteId) {
-      console.log(`MAPA: Ruta ${selectedRouteId} seleccionada. Cambiando a modo "solo esta ruta"`);
-      setShowAllRoutes(false);
-      
-      // FORZAR actualización inmediata del mapa para ocultar rutas no seleccionadas
-      if (mapInstanceRef.current && routeLayersRef.current) {
-        console.log(`Forzando ocultamiento de rutas al seleccionar ruta ${selectedRouteId}`);
-        // Pequeño retraso para asegurar que el estado se ha actualizado
-        setTimeout(() => {
-          highlightRoute(mapInstanceRef.current!, routeLayersRef.current, selectedRouteId, false);
-        }, 50);
-      }
-    } else {
-      console.log(`MAPA: No hay ruta seleccionada. Mostrando todas las rutas.`);
-      setShowAllRoutes(true); // Si no hay ruta seleccionada, mostrar todas
-      
-      // FORZAR mostrar todas las rutas cuando no hay selección
-      if (mapInstanceRef.current && routeLayersRef.current) {
-        setTimeout(() => {
-          highlightRoute(mapInstanceRef.current!, routeLayersRef.current, null, true);
-        }, 50);
-      }
-    }
-  }, [selectedRouteId]);
+  }, [mapReady, selectedRouteId]); // Eliminar la dependencia 'routes' para evitar recálculos innecesarios
   
   // Añadir paradas al mapa con optimización
   useEffect(() => {
@@ -260,41 +156,6 @@ export default function MapView({
     }
   };
   
-  // Función mejorada para mostrar/ocultar rutas con actualizaciones inmediatas
-  const toggleShowAllRoutes = () => {
-    const newValue = !showAllRoutes;
-    console.log(`TOGGLE MANUAL: Cambiando modo visualización a ${newValue ? 'TODAS las rutas' : 'SOLO la ruta seleccionada'}`);
-    setShowAllRoutes(newValue);
-    
-    // Forzar la actualización inmediata del mapa para aplicar los cambios
-    if (mapInstanceRef.current && routeLayersRef.current && Object.keys(routeLayersRef.current).length > 0) {
-      // Si estamos ocultando rutas, asegurarnos de removerlas físicamente del mapa
-      if (!newValue && selectedRouteId) {
-        console.log(`OCULTANDO TODAS las rutas excepto ${selectedRouteId}`);
-        
-        // IMPORTANTE: Procesamiento inmediato al cambiar a modo "solo esta ruta"
-        Object.keys(routeLayersRef.current).forEach(id => {
-          const routeId = parseInt(id);
-          if (routeId !== selectedRouteId) {
-            const routeLayers = routeLayersRef.current[routeId];
-            if (routeLayers) {
-              mapInstanceRef.current!.removeLayer(routeLayers.route);
-              mapInstanceRef.current!.removeLayer(routeLayers.outline);
-              mapInstanceRef.current!.removeLayer(routeLayers.shadow);
-              console.log(`Removida ruta ${routeId} directamente en toggle`);
-            }
-          }
-        });
-      } else {
-        // Si estamos mostrando todas, usar la función normal
-        setTimeout(() => {
-          console.log(`Actualizando visibilidad por toggle: selectedRouteId=${selectedRouteId}, showAllRoutes=${newValue}`);
-          highlightRoute(mapInstanceRef.current!, routeLayersRef.current, selectedRouteId, newValue);
-        }, 50);
-      }
-    }
-  };
-  
   return (
     <div className="flex-grow relative">
       <div ref={mapContainerRef} className="h-full w-full" />
@@ -335,33 +196,7 @@ export default function MapView({
         >
           <MapPin className="h-6 w-6 text-gray-700" />
         </Button>
-        
-        {/* Botón para mostrar/ocultar rutas - más visible y siempre presente */}
-        <Button
-          variant="outline"
-          size="icon"
-          className={`p-2 rounded-full shadow-md ${showAllRoutes ? 'bg-blue-500 hover:bg-blue-600' : 'bg-white hover:bg-gray-100'}`}
-          onClick={toggleShowAllRoutes}
-          title={showAllRoutes ? "Mostrar solo la ruta seleccionada" : "Mostrar todas las rutas"}
-        >
-          <Eye className={`h-6 w-6 ${showAllRoutes ? 'text-white' : 'text-gray-700'}`} />
-        </Button>
       </div>
-      
-      {/* Indicador de ruta seleccionada */}
-      {selectedRouteId && !showAllRoutes && (
-        <div className="absolute bottom-4 left-4 bg-white px-4 py-2 rounded-lg shadow-md">
-          <p className="text-sm font-medium">
-            Solo mostrando la ruta seleccionada en el mapa. 
-            <button 
-              onClick={toggleShowAllRoutes}
-              className="ml-2 text-blue-600 underline hover:text-blue-800 focus:outline-none"
-            >
-              Ver todas
-            </button>
-          </p>
-        </div>
-      )}
     </div>
   );
 }
