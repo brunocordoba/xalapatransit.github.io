@@ -258,107 +258,58 @@ export function highlightRoute(
   try {
     console.log(`Resaltando ruta ${selectedRouteId}, hay ${Object.keys(layers).length} capas disponibles, mostrar todas: ${showAllRoutes}`);
     
-    // Track la ruta que estaba seleccionada anteriormente
-    const prevSelectedId = Object.keys(layers).find(id => {
-      const routeLayers = layers[parseInt(id)];
-      if (!routeLayers) return false;
-      return routeLayers.route.options.className?.includes('selected');
-    });
-    
-    // Si hay una ruta seleccionada anteriormente y no es la actual, resetear solo esa
-    if (prevSelectedId && parseInt(prevSelectedId) !== selectedRouteId) {
-      const prevRouteLayers = layers[parseInt(prevSelectedId)];
-      if (prevRouteLayers) {
-        const { route, outline, shadow } = prevRouteLayers;
-        
-        // Restablecer el estilo predeterminado solo para la ruta anteriormente seleccionada
-        route.setStyle({
-          weight: 6, 
-          opacity: 1.0,
-          className: 'route-line'
-        });
-        
-        outline.setStyle({
-          weight: 10,
-          opacity: 0.8,
-          className: 'route-outline'
-        });
-        
-        shadow.setStyle({
-          weight: 14,
-          opacity: 0.4,
-          className: 'route-shadow'
-        });
-        
-        // Quitar la animación de pulsación
-        if (typeof route.getElement === 'function') {
-          const pathElement = route.getElement();
-          if (pathElement) {
+    // Procesar todas las rutas
+    Object.keys(layers).forEach(id => {
+      const routeId = parseInt(id);
+      const routeLayers = layers[routeId];
+      const isSelected = routeId === selectedRouteId;
+      const shouldBeVisible = isSelected || showAllRoutes;
+      
+      if (!routeLayers) return;
+      
+      // Configurar visibilidad y estilos
+      const baseOpacity = shouldBeVisible ? 1.0 : 0.0;
+      const outlineOpacity = shouldBeVisible ? 0.8 : 0.0;  
+      const shadowOpacity = shouldBeVisible ? 0.4 : 0.0;
+      
+      // Aplicar estilos según si es la ruta seleccionada o no
+      routeLayers.route.setStyle({
+        weight: isSelected ? 8 : 6,
+        opacity: baseOpacity,
+        className: isSelected ? 'route-line selected' : 'route-line'
+      });
+      
+      routeLayers.outline.setStyle({
+        weight: isSelected ? 12 : 10,
+        opacity: outlineOpacity,
+        className: isSelected ? 'route-outline selected' : 'route-outline'
+      });
+      
+      routeLayers.shadow.setStyle({
+        weight: isSelected ? 16 : 14,
+        opacity: shadowOpacity,
+        className: isSelected ? 'route-shadow selected' : 'route-shadow'
+      });
+      
+      // Manejar animaciones
+      if (typeof routeLayers.route.getElement === 'function') {
+        const pathElement = routeLayers.route.getElement();
+        if (pathElement) {
+          if (isSelected) {
+            pathElement.classList.add('pulse-animation');
+          } else {
             pathElement.classList.remove('pulse-animation');
           }
         }
       }
-    }
-    
-    // Mostrar u ocultar las rutas no seleccionadas
-    Object.keys(layers).forEach(id => {
-      const routeId = parseInt(id);
-      const routeLayers = layers[routeId];
       
-      if (routeId !== selectedRouteId) {
-        // Si no es la ruta seleccionada
-        const opacity = showAllRoutes ? 1.0 : 0.0;
-        const outlineOpacity = showAllRoutes ? 0.8 : 0.0;
-        const shadowOpacity = showAllRoutes ? 0.4 : 0.0;
+      // Si es la ruta seleccionada, asegurarse de que esté en primer plano
+      if (isSelected) {
+        routeLayers.bringToFront();
         
-        routeLayers.route.setStyle({ opacity });
-        routeLayers.outline.setStyle({ opacity: outlineOpacity });
-        routeLayers.shadow.setStyle({ opacity: shadowOpacity });
-      }
-    });
-    
-    // Si se selecciona una nueva ruta, aplicar el estilo destacado
-    if (selectedRouteId !== null && layers[selectedRouteId]) {
-      const selectedRouteLayers = layers[selectedRouteId];
-      
-      if (selectedRouteLayers) {
-        const { route, outline, shadow } = selectedRouteLayers;
-        
-        console.log(`Aplicando estilo destacado a la ruta ${selectedRouteId}`);
-        
-        // Optimización: solo aplicar los cambios de estilo necesarios
-        route.setStyle({
-          weight: 10, 
-          opacity: 1.0,
-          className: 'route-line selected'
-        });
-        
-        outline.setStyle({
-          weight: 14,
-          opacity: 0.9,
-          className: 'route-outline selected'
-        });
-        
-        shadow.setStyle({
-          weight: 18,
-          opacity: 0.5,
-          className: 'route-shadow selected'
-        });
-        
-        // Agregar efecto de pulsación a la ruta seleccionada con CSS
-        if (typeof route.getElement === 'function') {
-          const pathElement = route.getElement();
-          if (pathElement) {
-            pathElement.classList.add('pulse-animation');
-          }
-        }
-        
-        // Asegurar el orden correcto de las capas
-        selectedRouteLayers.bringToFront();
-        
-        // Centrar el mapa en la ruta seleccionada con animación suave
+        // Centrar el mapa en la ruta seleccionada
         try {
-          const bounds = route.getBounds();
+          const bounds = routeLayers.route.getBounds();
           if (bounds && typeof bounds.isValid === 'function' && bounds.isValid()) {
             map.fitBounds(bounds, {
               padding: [80, 80],
@@ -367,11 +318,11 @@ export function highlightRoute(
               duration: 0.5
             });
           }
-        } catch (boundError) {
-          console.warn('No se pudo centrar en la ruta:', boundError);
+        } catch (e) {
+          console.warn('No se pudo centrar en la ruta:', e);
         }
       }
-    }
+    });
   } catch (error) {
     console.error('Error al resaltar ruta:', error);
   }
