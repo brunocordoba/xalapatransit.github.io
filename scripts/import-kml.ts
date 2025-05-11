@@ -193,7 +193,7 @@ async function processKmlFile(filePath: string) {
 }
 
 // Configuración
-const KML_FILE_PATH = './data/rutas-xalapa.kml';
+const KML_FILE_PATH = './data/rutas-xalapa-fixed.kml';
 
 // Colores para las zonas
 const zoneColors: Record<string, string> = {
