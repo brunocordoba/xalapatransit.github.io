@@ -37,13 +37,24 @@ export default function MapView({
     queryKey: ['stops', selectedRouteId],
     queryFn: async () => {
       if (!selectedRouteId) return [];
-      const response = await fetch(`/api/routes/${selectedRouteId}/stops`);
-      if (!response.ok) {
-        throw new Error('Error al cargar las paradas');
+      try {
+        const response = await fetch(`/api/routes/${selectedRouteId}/stops`);
+        if (!response.ok) {
+          console.warn(`No se pudieron cargar paradas para la ruta ${selectedRouteId}`);
+          return [];
+        }
+        const data = await response.json();
+        return Array.isArray(data) ? data : [];
+      } catch (error) {
+        console.error(`Error al cargar paradas: ${error}`);
+        return [];
       }
-      return response.json();
     },
-    enabled: !!selectedRouteId && mapReady
+    enabled: !!selectedRouteId && mapReady,
+    // Añadir opciones de caché y reintento para mejorar rendimiento
+    staleTime: 300000, // 5 minutos
+    retry: 1,
+    retryDelay: 1000
   });
   
   // Initialize map
@@ -65,7 +76,7 @@ export default function MapView({
   // Variable para almacenar un identificador de timeout para debouncing
   const drawTimeoutRef = useRef<number | null>(null);
   
-  // Dibujar todas las rutas en el mapa con optimización
+  // Dibujar todas las rutas en el mapa con optimización avanzada
   useEffect(() => {
     if (mapReady && mapInstanceRef.current && routes.length > 0) {
       // Debounce para evitar múltiples renderizados en cambios rápidos
@@ -73,22 +84,62 @@ export default function MapView({
         window.clearTimeout(drawTimeoutRef.current);
       }
       
-      // Usar un loading state para indicar que estamos dibujando
-      mapInstanceRef.current.getContainer().classList.add('loading-routes');
+      // Indicar visualmente que estamos cargando
+      if (mapInstanceRef.current.getContainer()) {
+        mapInstanceRef.current.getContainer().classList.add('loading-routes');
+      }
       
-      // Dibujar rutas con un leve retraso para permitir al DOM actualizarse
+      // Dibujar rutas con un retraso para evitar bloqueo de UI
       drawTimeoutRef.current = window.setTimeout(() => {
-        const { layers, map } = drawRoutes(mapInstanceRef.current!, routes, (routeId) => {
-          // Cuando se hace clic en una ruta, manejar la selección
-          if (routeId !== selectedRouteId && onRouteSelect) {
-            onRouteSelect(routeId);
+        try {
+          console.log(`Dibujando ${routes.length} rutas en el mapa`);
+          
+          // Si hay demasiadas rutas, aplicar muestreo para mejorar rendimiento
+          let routesToRender = routes;
+          if (routes.length > 100 && !selectedRouteId) {
+            // Tomar sólo rutas populares y una muestra del resto
+            const popularRoutes = routes.filter(r => r.popular);
+            const otherRoutes = routes.filter(r => !r.popular);
+            const sampleSize = Math.min(50, otherRoutes.length);
+            const sampledRoutes = otherRoutes
+              .sort(() => 0.5 - Math.random()) // Mezclar aleatoriamente
+              .slice(0, sampleSize);
+            
+            routesToRender = [...popularRoutes, ...sampledRoutes];
+            console.log(`Optimizando: mostrando ${routesToRender.length} de ${routes.length} rutas`);
           }
-        });
-        
-        routeLayersRef.current = layers;
-        mapInstanceRef.current!.getContainer().classList.remove('loading-routes');
-        drawTimeoutRef.current = null;
-      }, 50);
+          
+          // Dibujar las rutas con la función optimizada
+          const { layers, map } = drawRoutes(mapInstanceRef.current!, routesToRender, (routeId) => {
+            // Cuando se hace clic en una ruta, manejar la selección
+            if (routeId !== selectedRouteId && onRouteSelect) {
+              onRouteSelect(routeId);
+            }
+          });
+          
+          routeLayersRef.current = layers;
+          
+          // Si hay una ruta seleccionada, asegurarse de que esté visible
+          if (selectedRouteId && !routeLayersRef.current[selectedRouteId] && routes.find(r => r.id === selectedRouteId)) {
+            console.log(`Añadiendo ruta seleccionada ${selectedRouteId} que faltaba`);
+            const selectedRoute = routes.find(r => r.id === selectedRouteId);
+            if (selectedRoute) {
+              const singleResult = drawRoutes(mapInstanceRef.current!, [selectedRoute], (routeId) => {
+                if (onRouteSelect) onRouteSelect(routeId);
+              });
+              routeLayersRef.current[selectedRouteId] = singleResult.layers[selectedRouteId];
+            }
+          }
+        } catch (error) {
+          console.error('Error al dibujar rutas:', error);
+        } finally {
+          // Siempre quitar el estado de carga
+          if (mapInstanceRef.current && mapInstanceRef.current.getContainer()) {
+            mapInstanceRef.current.getContainer().classList.remove('loading-routes');
+          }
+          drawTimeoutRef.current = null;
+        }
+      }, 100); // Aumentar ligeramente el retraso para evitar bloqueo de UI
     }
     
     // Limpieza en desmontaje

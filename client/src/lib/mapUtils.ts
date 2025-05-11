@@ -345,7 +345,7 @@ export function addBusStops(
   
   // Limpiar paradas existentes para evitar duplicados
   map.eachLayer((layer) => {
-    if (layer instanceof L.Marker && layer.options.stopRouteId === routeId) {
+    if (layer instanceof L.Marker && (layer as any)._routeId === routeId) {
       map.removeLayer(layer);
     }
   });
@@ -401,12 +401,13 @@ export function addBusStops(
         // Crear el marcador con metadatos
         const marker = L.marker([lat, lng], { 
           icon,
-          // Añadir metadata para facilitar limpieza posterior
-          stopRouteId: routeId,
           // Optimizaciones de rendimiento
           interactive: true,
           bubblingMouseEvents: true
         }).addTo(markerGroup);
+        
+        // Almacenar ID de ruta como propiedad personalizada
+        (marker as any)._routeId = routeId;
         
         // Crear popup ligero
         const popupContent = `
