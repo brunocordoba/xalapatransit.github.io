@@ -10,9 +10,9 @@ import { exec } from 'child_process';
 const execAsync = util.promisify(exec);
 
 // Constantes para directorios y archivos
-const SHAPEFILES_DIR = '/tmp/extract/shapefiles-mapton-ciudadano';
+const EXTRACT_DIR = '/tmp/extract';
 const PROCESSED_DIR = './tmp/processed';
-const BATCH_SIZE = 10; // Procesar 10 rutas por lote
+const BATCH_SIZE = 15; // Procesar 15 rutas por lote
 
 // Crear directorios de procesamiento si no existen
 if (!fs.existsSync(PROCESSED_DIR)) {
@@ -28,105 +28,91 @@ const zoneColors: Record<string, string> = {
   'centro': '#F97316' // orange-500
 };
 
-// Tipo para la información de ruta
-interface RouteInfo {
-  id: number;
-  folder: string;
-  path: string;
-  type: 'direct' | 'ida' | 'vuelta';
-}
-
 // Controlar el lote a procesar mediante argumentos de línea de comandos
 const args = process.argv.slice(2);
 const batchArg = args.find(arg => arg.startsWith('--batch='));
 const batchNum = batchArg ? parseInt(batchArg.split('=')[1], 10) : 1;
 
-// Encuentra todas las carpetas de rutas y las organiza
-function findAllRouteFolders(): RouteInfo[] {
-  console.log('Buscando carpetas de rutas...');
+// Tipo para la información de ruta
+interface RouteInfo {
+  id: number;
+  path: string;
+  name: string;
+  type: 'direct' | 'ida' | 'vuelta';
+}
+
+// Encontrar todos los archivos route.zip de forma recursiva
+function findAllRouteFiles(): RouteInfo[] {
+  console.log('Buscando archivos route.zip...');
   
-  // Leer todas las carpetas en el directorio principal
-  const entries = fs.readdirSync(SHAPEFILES_DIR, { withFileTypes: true });
+  // Comando para encontrar todos los archivos route.zip
+  const routeFiles = findFiles(EXTRACT_DIR, 'route.zip');
   
-  // Filtrar directorios que contienen ID al inicio y tienen subcarpetas o archivos route.zip
-  const routeFolders = entries
-    .filter(entry => entry.isDirectory())
-    .filter(entry => {
-      // Verificar si tiene formato de número al inicio del nombre
-      const idMatch = entry.name.match(/^(\d+)_/);
-      if (!idMatch) return false;
-      
-      // Verificar si tiene route.zip o subcarpetas ida/vuelta con route.zip
-      const folderPath = path.join(SHAPEFILES_DIR, entry.name);
-      const hasRouteZip = fs.existsSync(path.join(folderPath, 'route.zip'));
-      const hasIdaRouteZip = fs.existsSync(path.join(folderPath, 'ida', 'route.zip'));
-      const hasVueltaRouteZip = fs.existsSync(path.join(folderPath, 'vuelta', 'route.zip'));
-      
-      return hasRouteZip || hasIdaRouteZip || hasVueltaRouteZip;
-    })
-    .map(entry => {
-      const folderPath = path.join(SHAPEFILES_DIR, entry.name);
-      const idMatch = entry.name.match(/^(\d+)_/);
-      const id = idMatch ? parseInt(idMatch[1], 10) : 0;
-      
-      return {
-        id,
-        folder: entry.name,
-        path: folderPath
-      };
-    })
-    .filter(info => info.id > 0); // Solo carpetas con ID válido
-  
-  // Ordenar por ID (para mantener el orden original)
-  routeFolders.sort((a, b) => a.id - b.id);
-  
-  // Expandir carpetas de rutas para incluir ida/vuelta si existen
+  // Mapear a objetos RouteInfo
   const routeInfos: RouteInfo[] = [];
   
-  for (const folder of routeFolders) {
-    const hasIda = fs.existsSync(path.join(folder.path, 'ida', 'route.zip'));
-    const hasVuelta = fs.existsSync(path.join(folder.path, 'vuelta', 'route.zip'));
-    const hasDirect = fs.existsSync(path.join(folder.path, 'route.zip'));
+  for (const filePath of routeFiles) {
+    // Determinar nombre de la ruta y tipo (ida/vuelta/direct)
+    const pathParts = filePath.split('/');
+    const isIda = pathParts.includes('ida');
+    const isVuelta = pathParts.includes('vuelta');
     
-    if (hasIda) {
-      routeInfos.push({
-        id: folder.id,
-        folder: folder.folder,
-        path: path.join(folder.path, 'ida', 'route.zip'),
-        type: 'ida'
-      });
+    // Extraer ID de la carpeta principal
+    let routeId = 0;
+    let routeName = 'Ruta desconocida';
+    
+    for (let i = 0; i < pathParts.length; i++) {
+      const part = pathParts[i];
+      const match = part.match(/^(\d+)_/);
+      if (match) {
+        routeId = parseInt(match[1], 10);
+        routeName = `Ruta ${routeId}`;
+        break;
+      }
     }
     
-    if (hasVuelta) {
+    if (routeId > 0) {
+      const type = isIda ? 'ida' : (isVuelta ? 'vuelta' : 'direct');
+      
+      // Añadir sufijo al nombre si es ida/vuelta
+      if (isIda) {
+        routeName += ' (Ida)';
+      } else if (isVuelta) {
+        routeName += ' (Vuelta)';
+      }
+      
       routeInfos.push({
-        id: folder.id,
-        folder: folder.folder,
-        path: path.join(folder.path, 'vuelta', 'route.zip'),
-        type: 'vuelta'
-      });
-    }
-    
-    if (hasDirect) {
-      routeInfos.push({
-        id: folder.id,
-        folder: folder.folder,
-        path: path.join(folder.path, 'route.zip'),
-        type: 'direct'
+        id: routeId,
+        path: filePath,
+        name: routeName,
+        type
       });
     }
   }
   
-  console.log(`Encontradas ${routeInfos.length} rutas en ${routeFolders.length} carpetas`);
+  // Ordenar por ID
+  routeInfos.sort((a, b) => {
+    // Primero ordenar por ID
+    if (a.id !== b.id) {
+      return a.id - b.id;
+    }
+    
+    // Si tienen el mismo ID, ordenar por tipo: direct, ida, vuelta
+    const typeOrder = { direct: 0, ida: 1, vuelta: 2 };
+    return typeOrder[a.type] - typeOrder[b.type];
+  });
+  
+  console.log(`Encontrados ${routeInfos.length} archivos route.zip.`);
   return routeInfos;
 }
 
 // Función principal para importar rutas por lotes
-async function importRoutesByBatch() {
-  console.log(`Iniciando importación de rutas en lotes - Lote ${batchNum}...`);
+async function importAllRouteFiles() {
+  console.log(`Iniciando importación de todos los archivos route.zip - Lote ${batchNum}...`);
   
   try {
     // Obtener todas las rutas
-    const allRouteInfos = findAllRouteFolders();
+    const allRouteInfos = findAllRouteFiles();
     
     const totalRoutes = allRouteInfos.length;
     const totalBatches = Math.ceil(totalRoutes / BATCH_SIZE);
@@ -140,7 +126,7 @@ async function importRoutesByBatch() {
     // Comprobar que haya archivos para procesar
     if (startIndex >= totalRoutes) {
       console.log(`⚠️ El lote ${batchNum} está fuera de rango (máximo: ${totalBatches})`);
-      return { successCount: 0, errorCount: 0 };
+      return { successCount: 0, errorCount: 0, totalBatches };
     }
     
     // Seleccionar solo las rutas para este lote
@@ -166,32 +152,27 @@ async function importRoutesByBatch() {
       const globalIndex = startIndex + i;
       
       try {
-        console.log(`\nProcesando ruta ${globalIndex+1}/${totalRoutes}: ID=${routeInfo.id}, Tipo=${routeInfo.type}`);
+        console.log(`\nProcesando ruta ${globalIndex+1}/${totalRoutes}: ID=${routeInfo.id}, Nombre=${routeInfo.name}`);
         
         // Determinar zona basada en el ID
         const zone = determineZone(routeInfo.id);
         
-        // Determinar nombre de ruta
-        const suffix = routeInfo.type === 'direct' ? '' : 
-                      (routeInfo.type === 'ida' ? ' (Ida)' : ' (Vuelta)');
-        const routeName = `Ruta ${routeInfo.id}${suffix}`;
-        
-        console.log(`Importando: ${routeName} (Zona: ${zone})`);
+        console.log(`Importando: ${routeInfo.name} (Zona: ${zone})`);
         
         // Procesar la ruta
         const route = await processRouteZip(
           routeInfo.path,
           routeInfo.id, 
-          routeName,
+          routeInfo.name,
           zone,
           globalIndex+1 // Numeración secuencial
         );
         
         if (route) {
-          console.log(`✅ Ruta importada: ${routeName} (ID DB: ${route.id}, Secuencia: ${globalIndex+1})`);
+          console.log(`✅ Ruta importada: ${routeInfo.name} (ID DB: ${route.id}, Secuencia: ${globalIndex+1})`);
           successCount++;
         } else {
-          console.log(`❌ Error al importar: ${routeName}`);
+          console.log(`❌ Error al importar: ${routeInfo.name}`);
           errorCount++;
         }
       } catch (error) {
@@ -331,11 +312,11 @@ function findFiles(dir: string, extension: string): string[] {
 // Ejecutar
 async function main() {
   try {
-    const result = await importRoutesByBatch();
+    const result = await importAllRouteFiles();
     console.log('Importación del lote finalizada con éxito:', result);
     
     if (result.totalBatches && batchNum < result.totalBatches) {
-      console.log(`\nPara continuar con el siguiente lote, ejecutar:\nNODE_ENV=development tsx scripts/import-routes-batch-sequential.ts --batch=${batchNum + 1}`);
+      console.log(`\nPara continuar con el siguiente lote, ejecutar:\nNODE_ENV=development tsx scripts/import-all-route-files.ts --batch=${batchNum + 1}`);
     } else {
       console.log('\n¡Todos los lotes han sido procesados!');
     }
