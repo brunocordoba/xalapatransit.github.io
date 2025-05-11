@@ -202,7 +202,7 @@ async function importAllStopsFromZips(baseDir: string) {
 }
 
 // Función para procesar un directorio o archivo ZIP específico
-async function importStopsFromSpecific(pathToProcess: string) {
+async function importStopsFromSpecific(pathToProcess: string, manualRouteId?: number) {
   try {
     const stats = fs.statSync(pathToProcess);
     
@@ -211,7 +211,7 @@ async function importStopsFromSpecific(pathToProcess: string) {
       await importAllStopsFromZips(pathToProcess);
     } else if (stats.isFile() && pathToProcess.endsWith('.zip')) {
       // Si es un archivo ZIP individual, procesarlo
-      const success = await processStopsFromZip(pathToProcess);
+      const success = await processStopsFromZip(pathToProcess, manualRouteId);
       console.log(`Procesamiento ${success ? 'exitoso' : 'fallido'} para: ${pathToProcess}`);
     } else {
       console.error(`La ruta especificada no es un directorio o archivo ZIP válido: ${pathToProcess}`);
@@ -230,11 +230,25 @@ async function main() {
     if (args.length === 0) {
       console.error('Debe especificar la ruta base como argumento. Ejemplo:');
       console.error('npx tsx import-stops-from-zip.ts ../data/mapaton');
+      console.error('npx tsx import-stops-from-zip.ts ruta.zip --route-id 345');
       process.exit(1);
     }
     
     const pathToProcess = args[0];
-    await importStopsFromSpecific(pathToProcess);
+    let manualRouteId: number | undefined;
+    
+    // Buscar si se especificó un ID de ruta manual
+    const routeIdIndex = args.indexOf('--route-id');
+    if (routeIdIndex !== -1 && args.length > routeIdIndex + 1) {
+      manualRouteId = parseInt(args[routeIdIndex + 1]);
+      if (isNaN(manualRouteId)) {
+        console.error('El ID de ruta debe ser un número válido');
+        process.exit(1);
+      }
+      console.log(`Usando ID de ruta manual: ${manualRouteId}`);
+    }
+    
+    await importStopsFromSpecific(pathToProcess, manualRouteId);
     
     console.log('Proceso completado con éxito');
     process.exit(0);
