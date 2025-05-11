@@ -37,24 +37,66 @@ export function drawRoutes(
     try {
       const geoJSON = route.geoJSON as any;
       
-      if (geoJSON && geoJSON.type === 'Feature' && geoJSON.geometry.type === 'LineString') {
-        const coordinates = geoJSON.geometry.coordinates as [number, number][];
-        
-        // Draw the route line
-        const routeLine = L.polyline(coordinates, {
-          color: route.color,
-          weight: 5,
-          opacity: 0.7
-        }).addTo(map);
-        
-        // Store reference to the layer
-        layers[route.id] = routeLine;
-        
-        // Add click event to the route
-        routeLine.on('click', () => {
-          onRouteClick(route.id);
-        });
+      if (!geoJSON) {
+        console.warn(`La ruta ${route.id} (${route.name}) no tiene datos GeoJSON`);
+        return;
       }
+      
+      let coordinates: [number, number][] = [];
+      
+      // Manejar diferentes formatos de GeoJSON
+      if (geoJSON.type === 'Feature' && geoJSON.geometry && geoJSON.geometry.type === 'LineString') {
+        // Formato estándar de GeoJSON
+        coordinates = geoJSON.geometry.coordinates;
+      } else if (geoJSON.geometry && geoJSON.geometry.coordinates) {
+        // Formato simplificado
+        coordinates = geoJSON.geometry.coordinates;
+      } else if (geoJSON.coordinates) {
+        // Formato más simplificado
+        coordinates = geoJSON.coordinates;
+      } else if (Array.isArray(geoJSON)) {
+        // Si GeoJSON es directamente un array de coordenadas
+        coordinates = geoJSON;
+      } else {
+        console.warn(`Formato GeoJSON no reconocido para la ruta ${route.id}:`, geoJSON);
+        return;
+      }
+      
+      // Validar que hay coordenadas y que son válidas
+      if (!coordinates || !Array.isArray(coordinates) || coordinates.length < 2) {
+        console.warn(`La ruta ${route.id} no tiene suficientes coordenadas válidas`, coordinates);
+        return;
+      }
+      
+      // Asegurarse de que las coordenadas están en el formato correcto para Leaflet [lat, lng]
+      // Leaflet espera [lat, lng] pero GeoJSON tiene [lng, lat]
+      const leafletCoords = coordinates.map(coord => {
+        // Si las coordenadas están invertidas, invertirlas aquí
+        if (typeof coord[0] === 'number' && typeof coord[1] === 'number') {
+          // GeoJSON utiliza [longitud, latitud] pero Leaflet usa [latitud, longitud]
+          return [coord[1], coord[0]] as [number, number];
+        }
+        return coord;
+      });
+      
+      // Debug
+      console.log(`Dibujando ruta ${route.id} con ${leafletCoords.length} puntos`);
+      
+      // Draw the route line
+      const routeLine = L.polyline(leafletCoords, {
+        color: route.color || '#3388ff',
+        weight: 5,
+        opacity: 0.7
+      }).addTo(map);
+      
+      // Store reference to the layer
+      layers[route.id] = routeLine;
+      
+      // Add click event to the route
+      routeLine.on('click', () => {
+        console.log(`Ruta ${route.id} seleccionada`);
+        onRouteClick(route.id);
+      });
     } catch (error) {
       console.error(`Error drawing route ${route.id}:`, error);
     }
@@ -69,23 +111,61 @@ export function highlightRoute(
   layers: Record<number, L.Polyline>, 
   selectedRouteId: number | null
 ): void {
-  // Reset all routes to default style
-  Object.entries(layers).forEach(([id, layer]) => {
-    const routeId = parseInt(id);
-    layer.setStyle({
-      weight: 5,
-      opacity: 0.7
-    });
+  try {
+    console.log(`Resaltando ruta ${selectedRouteId}, hay ${Object.keys(layers).length} capas disponibles`);
     
-    // Bring selected route to front
-    if (selectedRouteId !== null && routeId === selectedRouteId) {
-      layer.setStyle({
-        weight: 8,
-        opacity: 0.9
-      });
-      layer.bringToFront();
-    }
-  });
+    // Reset all routes to default style
+    Object.entries(layers).forEach(([id, layer]) => {
+      if (!layer) {
+        console.warn(`Capa para ruta ${id} es nula o indefinida`);
+        return;
+      }
+      
+      try {
+        const routeId = parseInt(id);
+        
+        // Estilo predeterminado para rutas no seleccionadas
+        layer.setStyle({
+          weight: 5,
+          opacity: 0.7,
+          dashArray: ''
+        });
+        
+        // Bring selected route to front and apply highlight style
+        if (selectedRouteId !== null && routeId === selectedRouteId) {
+          console.log(`Aplicando estilo destacado a la ruta ${routeId}`);
+          
+          // Estilo para la ruta seleccionada
+          layer.setStyle({
+            weight: 10,
+            opacity: 1.0,
+            dashArray: ''
+          });
+          
+          if (typeof layer.bringToFront === 'function') {
+            layer.bringToFront();
+          }
+          
+          // Opcionalmente, centrar el mapa en la ruta seleccionada
+          try {
+            const bounds = layer.getBounds();
+            if (bounds && typeof bounds.isValid === 'function' && bounds.isValid()) {
+              map.fitBounds(bounds, {
+                padding: [50, 50],
+                maxZoom: 15
+              });
+            }
+          } catch (boundError) {
+            console.warn('No se pudo centrar en la ruta:', boundError);
+          }
+        }
+      } catch (styleError) {
+        console.error(`Error al aplicar estilo a ruta ${id}:`, styleError);
+      }
+    });
+  } catch (error) {
+    console.error('Error al resaltar ruta:', error);
+  }
 }
 
 // Add bus stops to the map
