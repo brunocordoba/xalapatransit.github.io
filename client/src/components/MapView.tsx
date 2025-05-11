@@ -231,8 +231,19 @@ export default function MapView({
     }
   };
   
+  // Función mejorada para mostrar/ocultar rutas
   const toggleShowAllRoutes = () => {
-    setShowAllRoutes(!showAllRoutes);
+    const newValue = !showAllRoutes;
+    console.log(`TOGGLE: Cambiando modo visualización a ${newValue ? 'TODAS las rutas' : 'SOLO la ruta seleccionada'}`);
+    setShowAllRoutes(newValue);
+    
+    // Forzar la actualización inmediata del mapa para aplicar los cambios
+    if (mapInstanceRef.current && routeLayersRef.current && Object.keys(routeLayersRef.current).length > 0) {
+      setTimeout(() => {
+        console.log(`Actualizando visibilidad por toggle: selectedRouteId=${selectedRouteId}, showAllRoutes=${newValue}`);
+        highlightRoute(mapInstanceRef.current!, routeLayersRef.current, selectedRouteId, newValue);
+      }, 50);
+    }
   };
   
   return (

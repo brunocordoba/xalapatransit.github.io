@@ -317,12 +317,23 @@ export function highlightRoute(
         
         if (!routeLayers) return;
         
-        // CAMBIO CLAVE: Si la ruta no debe ser visible, la ocultamos completamente
+        // CAMBIO RADICAL: Si la ruta no debe ser visible, la REMOVEMOS del mapa completamente
         if (!shouldBeVisible) {
-          routeLayers.route.setStyle({ opacity: 0 });
-          routeLayers.outline.setStyle({ opacity: 0 });
-          routeLayers.shadow.setStyle({ opacity: 0 });
+          // Removemos las capas del mapa (en lugar de solo cambiar la opacidad)
+          map.removeLayer(routeLayers.route);
+          map.removeLayer(routeLayers.outline);
+          map.removeLayer(routeLayers.shadow);
+          
+          console.log(`REMOVIDA ruta ${routeId} del mapa`);
           return; // No seguir procesando esta ruta
+        } else {
+          // Asegurar que la ruta esté añadida al mapa si debe ser visible
+          if (!map.hasLayer(routeLayers.route)) {
+            map.addLayer(routeLayers.route);
+            map.addLayer(routeLayers.outline);
+            map.addLayer(routeLayers.shadow);
+            console.log(`Re-añadida ruta ${routeId} al mapa`);
+          }
         }
         
         // Si llegamos aquí, la ruta debe ser visible
@@ -369,12 +380,16 @@ export function highlightRoute(
           try {
             const bounds = routeLayers.route.getBounds();
             if (bounds && typeof bounds.isValid === 'function' && bounds.isValid()) {
-              map.fitBounds(bounds, {
-                padding: [80, 80],
-                maxZoom: 15,
-                animate: true,
-                duration: 0.5
-              });
+              // Solo centrar si acaba de cambiar la selección
+              if (!showAllRoutes || !map.getBounds().contains(bounds)) {
+                console.log(`Centrando mapa en la ruta ${routeId}`);
+                map.fitBounds(bounds, {
+                  padding: [80, 80],
+                  maxZoom: 15,
+                  animate: true,
+                  duration: 0.5
+                });
+              }
             }
           } catch (e) {
             console.warn('No se pudo centrar en la ruta:', e);
