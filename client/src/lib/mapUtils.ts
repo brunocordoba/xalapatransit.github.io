@@ -259,116 +259,103 @@ export function highlightRoute(
     
     // Si no hay ninguna ruta seleccionada, mostrar todas las rutas
     if (selectedRouteId === null) {
-      // Mostrar todas las rutas con su estilo normal
+      // Mostrar todas las rutas con estilo normal
       Object.keys(layers).forEach(id => {
-        const routeLayers = layers[parseInt(id)];
+        const routeId = parseInt(id);
+        const routeLayers = layers[routeId];
         if (!routeLayers) return;
         
-        const { route, outline, shadow } = routeLayers;
-        
-        // Asegurar visibilidad
-        route.setStyle({
-          weight: 6, 
-          opacity: 1.0,
-          className: 'route-line'
-        });
-        
-        outline.setStyle({
-          weight: 10,
-          opacity: 0.8,
-          className: 'route-outline'
-        });
-        
-        shadow.setStyle({
-          weight: 14,
-          opacity: 0.4,
-          className: 'route-shadow'
-        });
-        
-        // Hacer visible la ruta
-        route.getElement()?.setAttribute('style', '');
-        outline.getElement()?.setAttribute('style', '');
-        shadow.getElement()?.setAttribute('style', '');
+        // Si la capa está en el mapa, aplicar estilo normal
+        if (map.hasLayer(routeLayers.route)) {
+          routeLayers.route.setStyle({
+            weight: 6, 
+            opacity: 1.0,
+            className: 'route-line'
+          });
+          
+          routeLayers.outline.setStyle({
+            weight: 10,
+            opacity: 0.8,
+            className: 'route-outline'
+          });
+          
+          routeLayers.shadow.setStyle({
+            weight: 14,
+            opacity: 0.4,
+            className: 'route-shadow'
+          });
+        } 
+        // Si no está en el mapa, agregarla
+        else {
+          routeLayers.shadow.addTo(map);
+          routeLayers.outline.addTo(map);
+          routeLayers.route.addTo(map);
+          
+          // Asegurar el orden correcto
+          routeLayers.shadow.bringToBack();
+          routeLayers.outline.bringToFront();
+          routeLayers.route.bringToFront();
+        }
         
         // Quitar animación de pulsación
-        if (typeof route.getElement === 'function') {
-          const pathElement = route.getElement();
-          if (pathElement) {
-            pathElement.classList.remove('pulse-animation');
-          }
+        const pathElement = routeLayers.route.getElement();
+        if (pathElement) {
+          pathElement.classList.remove('pulse-animation');
         }
       });
       
       return;
     }
     
-    // Ocultar todas las rutas que no estén seleccionadas
+    // Si hay una ruta seleccionada, mostrar solo esa y ocultar las demás
     Object.keys(layers).forEach(id => {
       const routeId = parseInt(id);
       const routeLayers = layers[routeId];
       if (!routeLayers) return;
       
-      const { route, outline, shadow } = routeLayers;
-      
-      if (routeId !== selectedRouteId) {
-        // Para rutas no seleccionadas: ocultar completamente usando display:none
-        if (route.getElement()) {
-          route.getElement()?.setAttribute('style', 'display:none');
+      // Si es la ruta seleccionada
+      if (routeId === selectedRouteId) {
+        // Asegurarse de que la ruta está en el mapa
+        if (!map.hasLayer(routeLayers.route)) {
+          routeLayers.shadow.addTo(map);
+          routeLayers.outline.addTo(map);
+          routeLayers.route.addTo(map);
         }
-        if (outline.getElement()) {
-          outline.getElement()?.setAttribute('style', 'display:none');
-        }
-        if (shadow.getElement()) {
-          shadow.getElement()?.setAttribute('style', 'display:none');
-        }
-      } else {
-        // Para la ruta seleccionada: aplicar estilo destacado y asegurar visibilidad
+        
+        // Aplicar estilo destacado
         console.log(`Aplicando estilo destacado a la ruta ${selectedRouteId}`);
         
-        // Hacer seguro que la ruta es visible
-        if (route.getElement()) {
-          route.getElement()?.setAttribute('style', '');
-        }
-        if (outline.getElement()) {
-          outline.getElement()?.setAttribute('style', '');
-        }
-        if (shadow.getElement()) {
-          shadow.getElement()?.setAttribute('style', '');
-        }
-        
-        route.setStyle({
+        routeLayers.route.setStyle({
           weight: 10, 
           opacity: 1.0,
           className: 'route-line selected'
         });
         
-        outline.setStyle({
+        routeLayers.outline.setStyle({
           weight: 14,
           opacity: 0.9,
           className: 'route-outline selected'
         });
         
-        shadow.setStyle({
+        routeLayers.shadow.setStyle({
           weight: 18,
           opacity: 0.5,
           className: 'route-shadow selected'
         });
         
-        // Agregar efecto de pulsación a la ruta seleccionada
-        if (typeof route.getElement === 'function') {
-          const pathElement = route.getElement();
-          if (pathElement) {
-            pathElement.classList.add('pulse-animation');
-          }
+        // Agregar animación de pulsación
+        const pathElement = routeLayers.route.getElement();
+        if (pathElement) {
+          pathElement.classList.add('pulse-animation');
         }
         
-        // Asegurar que la ruta seleccionada está en frente
+        // Asegurar que está en frente
         routeLayers.bringToFront();
         
         // Centrar el mapa en la ruta seleccionada
         try {
-          const bounds = route.getBounds();
-          if (bounds && typeof bounds.isValid === 'function' && bounds.isValid()) {
+          const bounds = routeLayers.route.getBounds();
+          if (bounds && bounds.isValid()) {
             map.fitBounds(bounds, {
               padding: [80, 80],
               maxZoom: 15,
@@ -378,6 +365,14 @@ export function highlightRoute(
           }
         } catch (boundError) {
           console.warn('No se pudo centrar en la ruta:', boundError);
+        }
+      } 
+      // Si no es la ruta seleccionada, eliminarla del mapa
+      else {
+        if (map.hasLayer(routeLayers.route)) {
+          map.removeLayer(routeLayers.route);
+          map.removeLayer(routeLayers.outline);
+          map.removeLayer(routeLayers.shadow);
         }
       }
     });
