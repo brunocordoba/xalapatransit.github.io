@@ -314,6 +314,8 @@ export function highlightRoute(
         if (!routeLayers) return;
         
         // Optimización: Usar distintos estilos para alta carga
+        // Si no es visible (shouldBeVisible es false), establecer opacidad a 0
+        // Si es la ruta seleccionada o se muestran todas, establecer opacidad según carga
         const baseOpacity = shouldBeVisible ? (isHighLoad && !isSelected ? 0.8 : 1.0) : 0.0;
         const outlineOpacity = shouldBeVisible ? (isHighLoad && !isSelected ? 0.6 : 0.8) : 0.0;  
         const shadowOpacity = shouldBeVisible ? (isHighLoad && !isSelected ? 0.2 : 0.4) : 0.0;

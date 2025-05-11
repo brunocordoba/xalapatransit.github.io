@@ -169,6 +169,7 @@ export default function MapView({
   
   // Cuando se selecciona una ruta, cambiar automáticamente a modo "solo esta ruta"
   useEffect(() => {
+    // Siempre que haya una ruta seleccionada, OCULTAMOS todas las demás
     if (selectedRouteId) {
       setShowAllRoutes(false);
     } else {
@@ -272,18 +273,16 @@ export default function MapView({
           <MapPin className="h-6 w-6 text-gray-700" />
         </Button>
         
-        {/* Este botón solo es visible cuando hay una ruta seleccionada */}
-        {selectedRouteId && (
-          <Button
-            variant="outline"
-            size="icon"
-            className={`p-2 rounded-full shadow-md ${showAllRoutes ? 'bg-blue-100 hover:bg-blue-200' : 'bg-white hover:bg-gray-100'}`}
-            onClick={toggleShowAllRoutes}
-            title={showAllRoutes ? "Mostrar solo la ruta seleccionada" : "Mostrar todas las rutas"}
-          >
-            <Eye className={`h-6 w-6 ${showAllRoutes ? 'text-blue-600' : 'text-gray-700'}`} />
-          </Button>
-        )}
+        {/* Botón para mostrar/ocultar rutas - más visible y siempre presente */}
+        <Button
+          variant="outline"
+          size="icon"
+          className={`p-2 rounded-full shadow-md ${showAllRoutes ? 'bg-blue-500 hover:bg-blue-600' : 'bg-white hover:bg-gray-100'}`}
+          onClick={toggleShowAllRoutes}
+          title={showAllRoutes ? "Mostrar solo la ruta seleccionada" : "Mostrar todas las rutas"}
+        >
+          <Eye className={`h-6 w-6 ${showAllRoutes ? 'text-white' : 'text-gray-700'}`} />
+        </Button>
       </div>
       
       {/* Indicador de ruta seleccionada */}
