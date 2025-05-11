@@ -52,15 +52,32 @@ export function initializeMap(container: HTMLElement, center: [number, number], 
   return map;
 }
 
-// Get bus stop icon
+// Get bus stop icon - Estilo Mapaton
 export function getBusStopIcon(isTerminal: boolean | null, color: string = '#ffffff'): L.DivIcon {
   // En caso de que isTerminal sea null, tratarlo como false
   const isActuallyTerminal = isTerminal === true;
-  const size = isActuallyTerminal ? 14 : 8;
+  
+  // Tamaños según Mapaton
+  const size = isActuallyTerminal ? 18 : 12;
+  
+  // HTML para el icono de la parada de autobús
+  // Estilo exactamente como en Mapaton: puntos blancos con borde del color de la ruta
+  const borderColor = isActuallyTerminal ? color : 'rgba(0,0,0,0.5)';
+  const borderWidth = isActuallyTerminal ? 3 : 2;
   
   return L.divIcon({
     className: 'bus-stop-icon',
-    html: `<div class="w-full h-full rounded-full bg-white shadow-md border-2" style="border-color: ${isActuallyTerminal ? color : 'white'}"></div>`,
+    html: `
+      <div 
+        class="rounded-full bg-white shadow-xl" 
+        style="
+          width: ${size}px; 
+          height: ${size}px; 
+          border: ${borderWidth}px solid ${borderColor};
+          box-shadow: 0 0 8px rgba(0,0,0,0.4);
+        "
+      ></div>
+    `,
     iconSize: [size, size],
     iconAnchor: [size/2, size/2]
   });
@@ -123,36 +140,36 @@ export function drawRoutes(
       // Debug
       console.log(`Dibujando ruta ${route.id} con ${leafletCoords.length} puntos`);
       
-      // 1. Dibujar la sombra (capa inferior)
+      // 1. Dibujar la sombra (capa inferior) - Estilo Mapaton
       const shadowLine = L.polyline(leafletCoords, {
-        color: 'rgba(0,0,0,0.3)',
-        weight: 12,
-        opacity: 0.3,
+        color: 'rgba(0,0,0,0.5)',
+        weight: 14,
+        opacity: 0.4,
         lineCap: 'round',
         lineJoin: 'round',
-        smoothFactor: 0.5,
+        smoothFactor: 1.0,
         className: 'route-shadow',
       }).addTo(map);
       
-      // 2. Dibujar el borde blanco (capa intermedia)
+      // 2. Dibujar el borde blanco (capa intermedia) - Estilo Mapaton
       const routeOutline = L.polyline(leafletCoords, {
         color: 'white',
-        weight: 10,
-        opacity: 0.6,
+        weight: 12,
+        opacity: 0.8,
         lineCap: 'round',
         lineJoin: 'round',
-        smoothFactor: 0.5,
+        smoothFactor: 1.0,
         className: 'route-outline',
       }).addTo(map);
       
-      // 3. Dibujar la línea de la ruta (capa superior)
+      // 3. Dibujar la línea de la ruta (capa superior) - Estilo Mapaton
       const routeLine = L.polyline(leafletCoords, {
         color: route.color || '#3388ff',
-        weight: 5,
-        opacity: 0.9,
+        weight: 8,
+        opacity: 1.0,
         lineCap: 'round',
         lineJoin: 'round',
-        smoothFactor: 0.5,
+        smoothFactor: 1.0,
         className: 'route-line',
       }).addTo(map);
       
@@ -229,22 +246,22 @@ export function highlightRoute(
         const routeId = parseInt(id);
         const { route, outline, shadow } = routeLayers;
         
-        // Estilo predeterminado para rutas no seleccionadas
+        // Estilo predeterminado para rutas no seleccionadas - Estilo Mapaton
         route.setStyle({
-          weight: 5, 
-          opacity: 0.9,
+          weight: 8, 
+          opacity: 1.0,
           className: 'route-line'
         });
         
         outline.setStyle({
-          weight: 10,
-          opacity: 0.6,
+          weight: 12,
+          opacity: 0.8,
           className: 'route-outline'
         });
         
         shadow.setStyle({
-          weight: 12,
-          opacity: 0.3,
+          weight: 14,
+          opacity: 0.4,
           className: 'route-shadow'
         });
         
@@ -252,23 +269,23 @@ export function highlightRoute(
         if (selectedRouteId !== null && routeId === selectedRouteId) {
           console.log(`Aplicando estilo destacado a la ruta ${routeId}`);
           
-          // Estilo para la ruta seleccionada
+          // Estilo para la ruta seleccionada - Estilo Mapaton
           route.setStyle({
-            weight: 7, 
+            weight: 12, 
             opacity: 1.0,
             dashArray: '',
             className: 'route-line selected',
           });
           
           outline.setStyle({
-            weight: 14,
-            opacity: 0.7,
+            weight: 16,
+            opacity: 0.9,
             className: 'route-outline selected'
           });
           
           shadow.setStyle({
-            weight: 16,
-            opacity: 0.4,
+            weight: 20,
+            opacity: 0.5,
             className: 'route-shadow selected'
           });
           
