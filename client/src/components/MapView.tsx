@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Plus, Minus, MapPin, Menu } from 'lucide-react';
+import { Plus, Minus, MapPin, Menu, Layers, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BusRoute, BusStop } from '@shared/schema';
 import { initializeMap, drawRoutes, highlightRoute, addBusStops, RouteLayers } from '@/lib/mapUtils';
@@ -30,6 +30,7 @@ export default function MapView({
   const stopMarkersRef = useRef<L.Marker[]>([]);
   
   const [mapReady, setMapReady] = useState(false);
+  const [showAllRoutes, setShowAllRoutes] = useState(true);
   
   // Cargar las paradas para la ruta seleccionada
   const { data: stops } = useQuery<BusStop[]>({

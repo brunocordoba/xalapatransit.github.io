@@ -252,10 +252,11 @@ export function drawRoutes(
 export function highlightRoute(
   map: L.Map, 
   layers: Record<number, RouteLayers>, 
-  selectedRouteId: number | null
+  selectedRouteId: number | null,
+  showAllRoutes: boolean = true
 ): void {
   try {
-    console.log(`Resaltando ruta ${selectedRouteId}, hay ${Object.keys(layers).length} capas disponibles`);
+    console.log(`Resaltando ruta ${selectedRouteId}, hay ${Object.keys(layers).length} capas disponibles, mostrar todas: ${showAllRoutes}`);
     
     // Track la ruta que estaba seleccionada anteriormente
     const prevSelectedId = Object.keys(layers).find(id => {
@@ -298,6 +299,23 @@ export function highlightRoute(
         }
       }
     }
+    
+    // Mostrar u ocultar las rutas no seleccionadas
+    Object.keys(layers).forEach(id => {
+      const routeId = parseInt(id);
+      const routeLayers = layers[routeId];
+      
+      if (routeId !== selectedRouteId) {
+        // Si no es la ruta seleccionada
+        const opacity = showAllRoutes ? 1.0 : 0.0;
+        const outlineOpacity = showAllRoutes ? 0.8 : 0.0;
+        const shadowOpacity = showAllRoutes ? 0.4 : 0.0;
+        
+        routeLayers.route.setStyle({ opacity });
+        routeLayers.outline.setStyle({ opacity: outlineOpacity });
+        routeLayers.shadow.setStyle({ opacity: shadowOpacity });
+      }
+    });
     
     // Si se selecciona una nueva ruta, aplicar el estilo destacado
     if (selectedRouteId !== null && layers[selectedRouteId]) {
