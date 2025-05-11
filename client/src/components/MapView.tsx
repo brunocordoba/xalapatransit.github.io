@@ -174,9 +174,25 @@ export default function MapView({
     if (selectedRouteId) {
       console.log(`MAPA: Ruta ${selectedRouteId} seleccionada. Cambiando a modo "solo esta ruta"`);
       setShowAllRoutes(false);
+      
+      // FORZAR actualización inmediata del mapa para ocultar rutas no seleccionadas
+      if (mapInstanceRef.current && routeLayersRef.current) {
+        console.log(`Forzando ocultamiento de rutas al seleccionar ruta ${selectedRouteId}`);
+        // Pequeño retraso para asegurar que el estado se ha actualizado
+        setTimeout(() => {
+          highlightRoute(mapInstanceRef.current!, routeLayersRef.current, selectedRouteId, false);
+        }, 50);
+      }
     } else {
       console.log(`MAPA: No hay ruta seleccionada. Mostrando todas las rutas.`);
       setShowAllRoutes(true); // Si no hay ruta seleccionada, mostrar todas
+      
+      // FORZAR mostrar todas las rutas cuando no hay selección
+      if (mapInstanceRef.current && routeLayersRef.current) {
+        setTimeout(() => {
+          highlightRoute(mapInstanceRef.current!, routeLayersRef.current, null, true);
+        }, 50);
+      }
     }
   }, [selectedRouteId]);
   
@@ -231,18 +247,38 @@ export default function MapView({
     }
   };
   
-  // Función mejorada para mostrar/ocultar rutas
+  // Función mejorada para mostrar/ocultar rutas con actualizaciones inmediatas
   const toggleShowAllRoutes = () => {
     const newValue = !showAllRoutes;
-    console.log(`TOGGLE: Cambiando modo visualización a ${newValue ? 'TODAS las rutas' : 'SOLO la ruta seleccionada'}`);
+    console.log(`TOGGLE MANUAL: Cambiando modo visualización a ${newValue ? 'TODAS las rutas' : 'SOLO la ruta seleccionada'}`);
     setShowAllRoutes(newValue);
     
     // Forzar la actualización inmediata del mapa para aplicar los cambios
     if (mapInstanceRef.current && routeLayersRef.current && Object.keys(routeLayersRef.current).length > 0) {
-      setTimeout(() => {
-        console.log(`Actualizando visibilidad por toggle: selectedRouteId=${selectedRouteId}, showAllRoutes=${newValue}`);
-        highlightRoute(mapInstanceRef.current!, routeLayersRef.current, selectedRouteId, newValue);
-      }, 50);
+      // Si estamos ocultando rutas, asegurarnos de removerlas físicamente del mapa
+      if (!newValue && selectedRouteId) {
+        console.log(`OCULTANDO TODAS las rutas excepto ${selectedRouteId}`);
+        
+        // IMPORTANTE: Procesamiento inmediato al cambiar a modo "solo esta ruta"
+        Object.keys(routeLayersRef.current).forEach(id => {
+          const routeId = parseInt(id);
+          if (routeId !== selectedRouteId) {
+            const routeLayers = routeLayersRef.current[routeId];
+            if (routeLayers) {
+              mapInstanceRef.current!.removeLayer(routeLayers.route);
+              mapInstanceRef.current!.removeLayer(routeLayers.outline);
+              mapInstanceRef.current!.removeLayer(routeLayers.shadow);
+              console.log(`Removida ruta ${routeId} directamente en toggle`);
+            }
+          }
+        });
+      } else {
+        // Si estamos mostrando todas, usar la función normal
+        setTimeout(() => {
+          console.log(`Actualizando visibilidad por toggle: selectedRouteId=${selectedRouteId}, showAllRoutes=${newValue}`);
+          highlightRoute(mapInstanceRef.current!, routeLayersRef.current, selectedRouteId, newValue);
+        }, 50);
+      }
     }
   };
   

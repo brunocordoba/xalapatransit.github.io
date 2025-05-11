@@ -95,7 +95,7 @@ export function getBusStopIcon(isTerminal: boolean | null, color: string = '#fff
   });
 }
 
-// Draw all routes on the map
+// Draw all routes on the map - with selection support
 export function drawRoutes(
   map: L.Map, 
   routes: BusRoute[], 
@@ -104,11 +104,24 @@ export function drawRoutes(
 ): { map: L.Map; layers: Record<number, RouteLayers> } {
   const layers: Record<number, RouteLayers> = {};
   
+  // Si hay una ruta seleccionada, solo dibujaremos esa ruta
+  let filteredRoutes = routes;
+  if (selectedRouteId) {
+    console.log(`drawRoutes: Se ha seleccionado la ruta ${selectedRouteId}, filtrando para mostrar solo esa`);
+    filteredRoutes = routes.filter(r => r.id === selectedRouteId);
+    
+    // Si la ruta seleccionada no está en el array, seguimos con todas
+    if (filteredRoutes.length === 0) {
+      console.log(`La ruta seleccionada ${selectedRouteId} no existe en la lista de rutas, mostrando todas`);
+      filteredRoutes = routes;
+    }
+  }
+  
   // Usamos un grupo de capas para mejor rendimiento
   const routeLayerGroup = L.layerGroup().addTo(map);
   
   // Procesamos las rutas en bloques para evitar bloquear el hilo principal
-  const processRoutesInBatches = (routes: BusRoute[], batchSize: number = 20, startIndex: number = 0) => {
+  const processRoutesInBatches = (routesToProcess: BusRoute[], batchSize: number = 20, startIndex: number = 0) => {
     if (startIndex >= routes.length) return;
     
     const endIndex = Math.min(startIndex + batchSize, routes.length);
