@@ -5,7 +5,7 @@ import { z } from "zod";
 // Define the schemas for our data models
 
 export const busRoutes = pgTable("bus_routes", {
-  id: serial("id").primaryKey(),
+  id: serial("id").primaryKey(), // Volvemos a serial para evitar cambios en el esquema
   name: text("name").notNull(),
   shortName: text("short_name").notNull(),
   color: text("color").notNull(),
