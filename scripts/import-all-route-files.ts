@@ -46,7 +46,18 @@ function findAllRouteFiles(): RouteInfo[] {
   console.log('Buscando archivos route.zip...');
   
   // Comando para encontrar todos los archivos route.zip
-  const routeFiles = findFiles(EXTRACT_DIR, 'route.zip');
+  let routeFiles = findFiles(EXTRACT_DIR, 'route.zip');
+  
+  // Filtrar archivos de metadatos de macOS (._*)
+  routeFiles = routeFiles.filter(file => {
+    const parts = file.split('/');
+    const filename = parts[parts.length - 1];
+    return !filename.startsWith('._') && 
+           !file.includes('/__MACOSX/') && 
+           !file.includes('/.git/');
+  });
+  
+  console.log(`Encontrados ${routeFiles.length} archivos route.zip válidos.`);
   
   // Mapear a objetos RouteInfo
   const routeInfos: RouteInfo[] = [];
