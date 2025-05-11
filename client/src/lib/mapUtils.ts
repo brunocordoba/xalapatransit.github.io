@@ -1,6 +1,27 @@
 import L from 'leaflet';
 import { BusRoute, GeoJSONFeature } from '@shared/schema';
 
+// Clase para agrupar las capas de una ruta
+export class RouteLayers {
+  constructor(
+    public route: L.Polyline,
+    public outline: L.Polyline,
+    public shadow: L.Polyline
+  ) {}
+  
+  bringToFront() {
+    this.shadow.bringToBack();
+    this.outline.bringToFront();
+    this.route.bringToFront();
+  }
+  
+  remove() {
+    this.route.remove();
+    this.outline.remove();
+    this.shadow.remove();
+  }
+}
+
 // Initialize the map
 export function initializeMap(container: HTMLElement, center: [number, number], zoom: number): L.Map {
   const map = L.map(container, {
@@ -50,8 +71,8 @@ export function drawRoutes(
   map: L.Map, 
   routes: BusRoute[], 
   onRouteClick: (routeId: number) => void
-): { map: L.Map; layers: Record<number, L.Polyline> } {
-  const layers: Record<number, L.Polyline> = {};
+): { map: L.Map; layers: Record<number, RouteLayers> } {
+  const layers: Record<number, RouteLayers> = {};
   
   routes.forEach(route => {
     try {
@@ -102,29 +123,7 @@ export function drawRoutes(
       // Debug
       console.log(`Dibujando ruta ${route.id} con ${leafletCoords.length} puntos`);
       
-      // Primero dibujar un borde blanco para simular el efecto de calles
-      const routeOutline = L.polyline(leafletCoords, {
-        color: 'white',
-        weight: 10, // Más ancho para el borde
-        opacity: 0.6,
-        lineCap: 'round',
-        lineJoin: 'round',
-        smoothFactor: 0.5, // Menor suavizado para mejor seguimiento de calles
-        className: 'route-outline',
-      }).addTo(map);
-      
-      // Dibujar línea principal de la ruta exactamente como Mapaton.org
-      const routeLine = L.polyline(leafletCoords, {
-        color: route.color || '#3388ff',
-        weight: 5, // Grosor adecuado
-        opacity: 0.9, // Alta opacidad para mayor visibilidad
-        lineCap: 'round', // Extremos redondeados
-        lineJoin: 'round', // Uniones redondeadas
-        smoothFactor: 0.5, // Menor suavizado para seguir mejor las calles
-        className: 'route-line',
-      }).addTo(map);
-      
-      // Añadir efecto de sombra para mayor profundidad y realismo
+      // 1. Dibujar la sombra (capa inferior)
       const shadowLine = L.polyline(leafletCoords, {
         color: 'rgba(0,0,0,0.3)',
         weight: 12,
@@ -135,18 +134,38 @@ export function drawRoutes(
         className: 'route-shadow',
       }).addTo(map);
       
-      // Asegurar el orden de las capas:
-      // 1. Primero la sombra (abajo del todo)
+      // 2. Dibujar el borde blanco (capa intermedia)
+      const routeOutline = L.polyline(leafletCoords, {
+        color: 'white',
+        weight: 10,
+        opacity: 0.6,
+        lineCap: 'round',
+        lineJoin: 'round',
+        smoothFactor: 0.5,
+        className: 'route-outline',
+      }).addTo(map);
+      
+      // 3. Dibujar la línea de la ruta (capa superior)
+      const routeLine = L.polyline(leafletCoords, {
+        color: route.color || '#3388ff',
+        weight: 5,
+        opacity: 0.9,
+        lineCap: 'round',
+        lineJoin: 'round',
+        smoothFactor: 0.5,
+        className: 'route-line',
+      }).addTo(map);
+      
+      // Asegurar el orden correcto de las capas
       shadowLine.bringToBack();
-      // 2. Luego el borde blanco
       routeOutline.bringToFront();
-      // 3. Finalmente la línea de la ruta (visible por encima)
       routeLine.bringToFront();
       
-      // Store reference to the layer
-      layers[route.id] = routeLine;
+      // Crear y almacenar la instancia de RouteLayers
+      const routeLayers = new RouteLayers(routeLine, routeOutline, shadowLine);
+      layers[route.id] = routeLayers;
       
-      // Add click events to both the outline and the line
+      // Agregar eventos de clic a todas las capas
       routeLine.on('click', () => {
         console.log(`Ruta ${route.id} seleccionada`);
         onRouteClick(route.id);
@@ -157,20 +176,26 @@ export function drawRoutes(
         onRouteClick(route.id);
       });
       
+      shadowLine.on('click', () => {
+        console.log(`Ruta ${route.id} seleccionada (desde sombra)`);
+        onRouteClick(route.id);
+      });
+      
       // Mejorar la interacción al pasar el ratón
       routeLine.on('mouseover', () => {
         if (!routeLine.options.className?.includes('hover')) {
           routeLine.setStyle({
-            weight: 8,
+            weight: 7,
             className: 'route-line hover'
           });
         }
       });
       
       routeLine.on('mouseout', () => {
-        if (!layers[route.id].options.className?.includes('selected')) {
+        if (routeLine.options.className?.includes('hover') && 
+            !routeLine.options.className?.includes('selected')) {
           routeLine.setStyle({
-            weight: 6,
+            weight: 5,
             className: 'route-line'
           });
         }
@@ -187,57 +212,80 @@ export function drawRoutes(
 // Highlight selected route
 export function highlightRoute(
   map: L.Map, 
-  layers: Record<number, L.Polyline>, 
+  layers: Record<number, RouteLayers>, 
   selectedRouteId: number | null
 ): void {
   try {
     console.log(`Resaltando ruta ${selectedRouteId}, hay ${Object.keys(layers).length} capas disponibles`);
     
     // Reset all routes to default style
-    Object.entries(layers).forEach(([id, layer]) => {
-      if (!layer) {
-        console.warn(`Capa para ruta ${id} es nula o indefinida`);
+    Object.entries(layers).forEach(([id, routeLayers]) => {
+      if (!routeLayers) {
+        console.warn(`Capas para ruta ${id} son nulas o indefinidas`);
         return;
       }
       
       try {
         const routeId = parseInt(id);
+        const { route, outline, shadow } = routeLayers;
         
         // Estilo predeterminado para rutas no seleccionadas
-        layer.setStyle({
-          weight: 6, 
-          opacity: 0.7,
+        route.setStyle({
+          weight: 5, 
+          opacity: 0.9,
           className: 'route-line'
         });
         
-        // Bring selected route to front and apply highlight style
+        outline.setStyle({
+          weight: 10,
+          opacity: 0.6,
+          className: 'route-outline'
+        });
+        
+        shadow.setStyle({
+          weight: 12,
+          opacity: 0.3,
+          className: 'route-shadow'
+        });
+        
+        // Verificar si esta es la ruta seleccionada
         if (selectedRouteId !== null && routeId === selectedRouteId) {
           console.log(`Aplicando estilo destacado a la ruta ${routeId}`);
           
-          // Estilo para la ruta seleccionada (exactamente como Mapaton.org)
-          layer.setStyle({
-            weight: 7, // Ligeramente más gruesa que las demás
-            opacity: 1.0, // Completamente opaca
+          // Estilo para la ruta seleccionada
+          route.setStyle({
+            weight: 7, 
+            opacity: 1.0,
             dashArray: '',
             className: 'route-line selected',
-            // Añadir un ligero resplandor para destacar más (esto se implementará con CSS)
+          });
+          
+          outline.setStyle({
+            weight: 14,
+            opacity: 0.7,
+            className: 'route-outline selected'
+          });
+          
+          shadow.setStyle({
+            weight: 16,
+            opacity: 0.4,
+            className: 'route-shadow selected'
           });
           
           // Agregar efecto de pulsación a la ruta seleccionada con CSS
-          if (typeof layer.getElement === 'function') {
-            const pathElement = layer.getElement();
+          if (typeof route.getElement === 'function') {
+            const pathElement = route.getElement();
             if (pathElement) {
               pathElement.classList.add('pulse-animation');
             }
           }
           
-          if (typeof layer.bringToFront === 'function') {
-            layer.bringToFront();
-          }
+          // Asegurar el orden correcto de las capas
+          routeLayers.bringToFront();
           
           // Centrar el mapa en la ruta seleccionada con animación suave
           try {
-            const bounds = layer.getBounds();
+            const bounds = route.getBounds();
             if (bounds && typeof bounds.isValid === 'function' && bounds.isValid()) {
               map.fitBounds(bounds, {
                 padding: [100, 100], // Más padding para mejor visualización

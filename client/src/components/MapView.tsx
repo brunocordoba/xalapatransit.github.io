@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { Plus, Minus, MapPin, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BusRoute, BusStop } from '@shared/schema';
-import { initializeMap, drawRoutes, highlightRoute, addBusStops } from '@/lib/mapUtils';
+import { initializeMap, drawRoutes, highlightRoute, addBusStops, RouteLayers } from '@/lib/mapUtils';
 import { XALAPA_CENTER, DEFAULT_ZOOM } from '@/lib/constants';
 import { useQuery } from '@tanstack/react-query';
+import L from 'leaflet';
 
 type MapViewProps = {
   routes: BusRoute[];
@@ -25,7 +26,7 @@ export default function MapView({
 }: MapViewProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
-  const routeLayersRef = useRef<Record<number, L.Polyline>>({});
+  const routeLayersRef = useRef<Record<number, RouteLayers>>({});
   const stopMarkersRef = useRef<L.Marker[]>([]);
   
   const [mapReady, setMapReady] = useState(false);
