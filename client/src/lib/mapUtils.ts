@@ -87,7 +87,8 @@ export function getBusStopIcon(isTerminal: boolean | null, color: string = '#fff
 export function drawRoutes(
   map: L.Map, 
   routes: BusRoute[], 
-  onRouteClick: (routeId: number) => void
+  onRouteClick: (routeId: number) => void,
+  selectedRouteId: number | null = null
 ): { map: L.Map; layers: Record<number, RouteLayers> } {
   const layers: Record<number, RouteLayers> = {};
   
@@ -132,13 +133,37 @@ export function drawRoutes(
           return;
         }
         
-        // Simplificar la geometría para mejorar el rendimiento
-        // Reducir el número de puntos en rutas largas (más de 100 puntos)
+        // Simplificación avanzada para mejorar rendimiento
+        // Aplicamos una simplificación más agresiva a medida que hay más rutas y puntos
         let simplifiedCoords = coordinates;
-        if (coordinates.length > 100) {
-          // Aplicar una simplificación básica manteniendo los puntos clave
-          const step = Math.max(1, Math.floor(coordinates.length / 100));
-          simplifiedCoords = coordinates.filter((_, i) => i % step === 0 || i === 0 || i === coordinates.length - 1);
+        
+        if (coordinates.length > 50) {
+          // Nivel de simplificación basado en la cantidad de rutas y puntos
+          const maxPoints = routes.length > 100 ? 30 : (routes.length > 50 ? 50 : 80);
+          
+          if (coordinates.length > maxPoints) {
+            // Simplificación adaptativa - más agresiva cuando hay más rutas
+            const ratio = maxPoints / coordinates.length;
+            const step = Math.max(1, Math.floor(1 / ratio));
+            
+            // Asegurarse de mantener puntos críticos (inicio, fin, y algunos intermedios)
+            simplifiedCoords = [];
+            
+            // Siempre incluir el punto inicial
+            simplifiedCoords.push(coordinates[0]);
+            
+            // Muestrear puntos intermedios
+            for (let i = 1; i < coordinates.length - 1; i += step) {
+              simplifiedCoords.push(coordinates[i]);
+            }
+            
+            // Siempre incluir el punto final
+            if (coordinates.length > 1 && simplifiedCoords[simplifiedCoords.length - 1] !== coordinates[coordinates.length - 1]) {
+              simplifiedCoords.push(coordinates[coordinates.length - 1]);
+            }
+            
+            console.log(`Simplificado ruta ${route.id}: ${coordinates.length} → ${simplifiedCoords.length} puntos`);
+          }
         }
         
         // Convertir coordenadas a formato Leaflet [lat, lng]
@@ -151,45 +176,71 @@ export function drawRoutes(
         
         console.log(`Dibujando ruta ${route.id} con ${leafletCoords.length} puntos`);
         
-        // 1. Dibujar la sombra (capa inferior)
-        const shadowLine = L.polyline(leafletCoords, {
-          color: 'rgba(0,0,0,0.5)',
-          weight: 14,
-          opacity: 0.4,
-          lineCap: 'round',
-          lineJoin: 'round',
-          // Aumentar smoothFactor para simplificar aún más al renderizar
-          smoothFactor: 2.0,
-          className: 'route-shadow',
-          // Reducir el impacto de las actualizaciones visuales
-          interactive: false, // Solo la línea principal será interactiva
-          renderer: new L.SVG({ padding: 0 })
-        });
+        // Optimización basada en la carga total - reducir calidad para mejorar rendimiento
+        const isHighLoad = routes.length > 100;
+        const useSimplifiedRendering = isHighLoad && !route.popular && selectedRouteId !== null && route.id !== selectedRouteId;
         
-        // 2. Dibujar el borde blanco (capa intermedia)
-        const routeOutline = L.polyline(leafletCoords, {
-          color: 'white',
-          weight: 10,
-          opacity: 0.8,
-          lineCap: 'round',
-          lineJoin: 'round',
-          smoothFactor: 2.0,
-          className: 'route-outline',
-          interactive: false,
-          renderer: new L.SVG({ padding: 0 })
-        });
+        // Renderer compartido para optimizar memoria
+        const sharedRenderer = new L.SVG({ padding: 0 });
+        
+        // Ajustar la calidad según la carga
+        const smoothFactor = useSimplifiedRendering ? 3.0 : 2.0;
+        
+        // 1. Dibujar la sombra (capa inferior) - sólo para rutas importantes en alta carga
+        const shadowLine = useSimplifiedRendering ? 
+          // Versión simplificada para alta carga (sin sombra)
+          L.polyline([], { opacity: 0 }) :
+          // Versión normal con sombra
+          L.polyline(leafletCoords, {
+            color: 'rgba(0,0,0,0.5)',
+            weight: 14,
+            opacity: 0.4,
+            lineCap: 'round',
+            lineJoin: 'round',
+            smoothFactor: smoothFactor,
+            className: 'route-shadow',
+            interactive: false,
+            renderer: sharedRenderer
+          });
+        
+        // 2. Dibujar el borde blanco (capa intermedia) - simplificado para alta carga
+        const routeOutline = useSimplifiedRendering ?
+          // Versión simplificada para alta carga (borde más delgado)
+          L.polyline(leafletCoords, {
+            color: 'white',
+            weight: 8,
+            opacity: 0.6,
+            lineCap: 'round',
+            lineJoin: 'round',
+            smoothFactor: smoothFactor,
+            className: 'route-outline simplified',
+            interactive: false,
+            renderer: sharedRenderer
+          }) :
+          // Versión normal
+          L.polyline(leafletCoords, {
+            color: 'white',
+            weight: 10,
+            opacity: 0.8,
+            lineCap: 'round',
+            lineJoin: 'round',
+            smoothFactor: smoothFactor,
+            className: 'route-outline',
+            interactive: false,
+            renderer: sharedRenderer
+          });
         
         // 3. Dibujar la línea de la ruta (capa superior)
         const routeLine = L.polyline(leafletCoords, {
           color: route.color || '#3388ff',
-          weight: 6,
-          opacity: 1.0,
+          weight: useSimplifiedRendering ? 4 : 6,
+          opacity: useSimplifiedRendering ? 0.8 : 1.0,
           lineCap: 'round',
           lineJoin: 'round',
-          smoothFactor: 2.0,
-          className: 'route-line',
-          interactive: true,
-          renderer: new L.SVG({ padding: 0 })
+          smoothFactor: smoothFactor,
+          className: `route-line${useSimplifiedRendering ? ' simplified' : ''}${isHighLoad ? ' high-load' : ''}`,
+          interactive: true, // Siempre interactiva para poder seleccionar
+          renderer: sharedRenderer
         });
         
         // Añadir a la capa de grupo para mejor rendimiento en lugar de directamente al mapa

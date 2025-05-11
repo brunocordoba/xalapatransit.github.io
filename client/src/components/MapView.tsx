@@ -109,13 +109,18 @@ export default function MapView({
             console.log(`Optimizando: mostrando ${routesToRender.length} de ${routes.length} rutas`);
           }
           
-          // Dibujar las rutas con la función optimizada
-          const { layers, map } = drawRoutes(mapInstanceRef.current!, routesToRender, (routeId) => {
-            // Cuando se hace clic en una ruta, manejar la selección
-            if (routeId !== selectedRouteId && onRouteSelect) {
-              onRouteSelect(routeId);
-            }
-          });
+          // Dibujar las rutas con la función optimizada, pasando el ID de ruta seleccionada
+          const { layers, map } = drawRoutes(
+            mapInstanceRef.current!, 
+            routesToRender, 
+            (routeId) => {
+              // Cuando se hace clic en una ruta, manejar la selección
+              if (routeId !== selectedRouteId && onRouteSelect) {
+                onRouteSelect(routeId);
+              }
+            },
+            selectedRouteId // Pasar ID de ruta seleccionada para optimizaciones
+          );
           
           routeLayersRef.current = layers;
           
@@ -124,9 +129,14 @@ export default function MapView({
             console.log(`Añadiendo ruta seleccionada ${selectedRouteId} que faltaba`);
             const selectedRoute = routes.find(r => r.id === selectedRouteId);
             if (selectedRoute) {
-              const singleResult = drawRoutes(mapInstanceRef.current!, [selectedRoute], (routeId) => {
-                if (onRouteSelect) onRouteSelect(routeId);
-              });
+              const singleResult = drawRoutes(
+                mapInstanceRef.current!, 
+                [selectedRoute], 
+                (routeId) => {
+                  if (onRouteSelect) onRouteSelect(routeId);
+                },
+                selectedRouteId
+              );
               routeLayersRef.current[selectedRouteId] = singleResult.layers[selectedRouteId];
             }
           }
