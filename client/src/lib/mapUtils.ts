@@ -283,6 +283,7 @@ export function drawRoutes(
 }
 
 // Highlight selected route con optimizaciones de rendimiento
+// Versión mejorada de la función highlightRoute que REALMENTE oculta todas las rutas excepto la seleccionada
 export function highlightRoute(
   map: L.Map, 
   layers: Record<number, RouteLayers>, 
@@ -309,16 +310,25 @@ export function highlightRoute(
         const routeId = parseInt(id);
         const routeLayers = layers[routeId];
         const isSelected = routeId === selectedRouteId;
+        // MEJORA: Una ruta es visible solo si:
+        // 1. Es la ruta seleccionada, O
+        // 2. Se muestra todas las rutas (showAllRoutes = true)
         const shouldBeVisible = isSelected || showAllRoutes;
         
         if (!routeLayers) return;
         
-        // Optimización: Usar distintos estilos para alta carga
-        // Si no es visible (shouldBeVisible es false), establecer opacidad a 0
-        // Si es la ruta seleccionada o se muestran todas, establecer opacidad según carga
-        const baseOpacity = shouldBeVisible ? (isHighLoad && !isSelected ? 0.8 : 1.0) : 0.0;
-        const outlineOpacity = shouldBeVisible ? (isHighLoad && !isSelected ? 0.6 : 0.8) : 0.0;  
-        const shadowOpacity = shouldBeVisible ? (isHighLoad && !isSelected ? 0.2 : 0.4) : 0.0;
+        // CAMBIO CLAVE: Si la ruta no debe ser visible, la ocultamos completamente
+        if (!shouldBeVisible) {
+          routeLayers.route.setStyle({ opacity: 0 });
+          routeLayers.outline.setStyle({ opacity: 0 });
+          routeLayers.shadow.setStyle({ opacity: 0 });
+          return; // No seguir procesando esta ruta
+        }
+        
+        // Si llegamos aquí, la ruta debe ser visible
+        const baseOpacity = isHighLoad && !isSelected ? 0.8 : 1.0;
+        const outlineOpacity = isHighLoad && !isSelected ? 0.6 : 0.8;  
+        const shadowOpacity = isHighLoad && !isSelected ? 0.2 : 0.4;
         
         // Aplicar estilos según si es la ruta seleccionada o no
         routeLayers.route.setStyle({

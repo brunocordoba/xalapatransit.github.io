@@ -163,6 +163,7 @@ export default function MapView({
   // Destacar la ruta seleccionada con optimización
   useEffect(() => {
     if (mapReady && mapInstanceRef.current && routes.length > 0 && Object.keys(routeLayersRef.current).length > 0) {
+      console.log(`MAPA: Actualizando visibilidad de rutas. Ruta seleccionada: ${selectedRouteId}, mostrar todas: ${showAllRoutes}`);
       highlightRoute(mapInstanceRef.current, routeLayersRef.current, selectedRouteId, showAllRoutes);
     }
   }, [mapReady, selectedRouteId, showAllRoutes]); // Añadimos showAllRoutes como dependencia
@@ -171,8 +172,10 @@ export default function MapView({
   useEffect(() => {
     // Siempre que haya una ruta seleccionada, OCULTAMOS todas las demás
     if (selectedRouteId) {
+      console.log(`MAPA: Ruta ${selectedRouteId} seleccionada. Cambiando a modo "solo esta ruta"`);
       setShowAllRoutes(false);
     } else {
+      console.log(`MAPA: No hay ruta seleccionada. Mostrando todas las rutas.`);
       setShowAllRoutes(true); // Si no hay ruta seleccionada, mostrar todas
     }
   }, [selectedRouteId]);
