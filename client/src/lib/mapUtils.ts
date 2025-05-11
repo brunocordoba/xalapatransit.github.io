@@ -95,30 +95,45 @@ export function drawRoutes(
       // Debug
       console.log(`Dibujando ruta ${route.id} con ${leafletCoords.length} puntos`);
       
-      // Draw the route line con estilo mejorado similar a Mapaton.org
-      const routeLine = L.polyline(leafletCoords, {
-        color: route.color || '#3388ff',
-        weight: 6, // Línea más gruesa
-        opacity: 0.9, // Más opaca
-        lineCap: 'round', // Extremos redondeados
-        lineJoin: 'round', // Uniones redondeadas
-        smoothFactor: 1, // Valor menor para más precisión 
-        // Efecto de sombra para dar profundidad
-        className: 'route-line',
-      }).addTo(map);
-      
-      // Agregar un borde blanco para mejorar la visibilidad
+      // Primero dibujar un borde blanco para simular el efecto de calles
       const routeOutline = L.polyline(leafletCoords, {
         color: 'white',
-        weight: 9, // Ligeramente más ancho
-        opacity: 0.5,
+        weight: 10, // Más ancho para el borde
+        opacity: 0.6,
         lineCap: 'round',
         lineJoin: 'round',
-        smoothFactor: 1,
+        smoothFactor: 0.5, // Menor suavizado para mejor seguimiento de calles
         className: 'route-outline',
       }).addTo(map);
       
-      // Asegurarse que la línea está por encima del borde
+      // Dibujar línea principal de la ruta exactamente como Mapaton.org
+      const routeLine = L.polyline(leafletCoords, {
+        color: route.color || '#3388ff',
+        weight: 5, // Grosor adecuado
+        opacity: 0.9, // Alta opacidad para mayor visibilidad
+        lineCap: 'round', // Extremos redondeados
+        lineJoin: 'round', // Uniones redondeadas
+        smoothFactor: 0.5, // Menor suavizado para seguir mejor las calles
+        className: 'route-line',
+      }).addTo(map);
+      
+      // Añadir efecto de sombra para mayor profundidad y realismo
+      const shadowLine = L.polyline(leafletCoords, {
+        color: 'rgba(0,0,0,0.3)',
+        weight: 12,
+        opacity: 0.3,
+        lineCap: 'round',
+        lineJoin: 'round',
+        smoothFactor: 0.5,
+        className: 'route-shadow',
+      }).addTo(map);
+      
+      // Asegurar el orden de las capas:
+      // 1. Primero la sombra (abajo del todo)
+      shadowLine.bringToBack();
+      // 2. Luego el borde blanco
+      routeOutline.bringToFront();
+      // 3. Finalmente la línea de la ruta (visible por encima)
       routeLine.bringToFront();
       
       // Store reference to the layer
@@ -192,12 +207,13 @@ export function highlightRoute(
         if (selectedRouteId !== null && routeId === selectedRouteId) {
           console.log(`Aplicando estilo destacado a la ruta ${routeId}`);
           
-          // Estilo para la ruta seleccionada (siguiendo el estilo de Mapaton.org)
+          // Estilo para la ruta seleccionada (exactamente como Mapaton.org)
           layer.setStyle({
-            weight: 10,
-            opacity: 1.0,
+            weight: 7, // Ligeramente más gruesa que las demás
+            opacity: 1.0, // Completamente opaca
             dashArray: '',
-            className: 'route-line selected'
+            className: 'route-line selected',
+            // Añadir un ligero resplandor para destacar más (esto se implementará con CSS)
           });
           
           // Agregar efecto de pulsación a la ruta seleccionada con CSS
