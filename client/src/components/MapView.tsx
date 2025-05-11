@@ -229,7 +229,7 @@ export default function MapView({
       {selectedRouteId && !showAllRoutes && (
         <div className="absolute bottom-4 left-4 bg-white px-4 py-2 rounded-lg shadow-md">
           <p className="text-sm font-medium">
-            Solo mostrando la ruta seleccionada. 
+            Solo mostrando la ruta seleccionada en el mapa. 
             <button 
               onClick={toggleShowAllRoutes}
               className="ml-2 text-blue-600 underline hover:text-blue-800 focus:outline-none"
