@@ -8,18 +8,25 @@ export function initializeMap(container: HTMLElement, center: [number, number], 
     attributionControl: true
   }).setView(center, zoom);
   
-  // Carto Voyager map - mejor detalle de calles similar a Mapaton.org
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    subdomains: 'abcd',
-    maxZoom: 20
-  }).addTo(map);
+  // Usar Mapbox como proveedor de mapas base (exactamente como Mapaton)
+  const mapboxToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || '';
   
-  // Alternativa: Mapbox Street (se requiere key)
-  // L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=YOUR_MAPBOX_ACCESS_TOKEN', {
-  //   attribution: '© <a href="https://www.mapbox.com/about/maps/">Mapbox</a> © <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-  //   maxZoom: 20
-  // }).addTo(map);
+  if (mapboxToken) {
+    // Si tenemos un token de Mapbox, usamos sus mapas de alta calidad
+    L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=' + mapboxToken, {
+      attribution: '© <a href="https://www.mapbox.com/about/maps/">Mapbox</a> © <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom: 20,
+      tileSize: 512,
+      zoomOffset: -1
+    }).addTo(map);
+  } else {
+    // Fallback a Carto si no hay token de Mapbox
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 20
+    }).addTo(map);
+  }
   
   return map;
 }
