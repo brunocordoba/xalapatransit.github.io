@@ -248,7 +248,7 @@ export function drawRoutes(
   return { map, layers };
 }
 
-// Highlight selected route
+// Highlight selected route and hide others (like mapaton.org)
 export function highlightRoute(
   map: L.Map, 
   layers: Record<number, RouteLayers>, 
@@ -257,20 +257,16 @@ export function highlightRoute(
   try {
     console.log(`Resaltando ruta ${selectedRouteId}, hay ${Object.keys(layers).length} capas disponibles`);
     
-    // Track la ruta que estaba seleccionada anteriormente
-    const prevSelectedId = Object.keys(layers).find(id => {
-      const routeLayers = layers[parseInt(id)];
-      if (!routeLayers) return false;
-      return routeLayers.route.options.className?.includes('selected');
-    });
-    
-    // Si hay una ruta seleccionada anteriormente y no es la actual, resetear solo esa
-    if (prevSelectedId && parseInt(prevSelectedId) !== selectedRouteId) {
-      const prevRouteLayers = layers[parseInt(prevSelectedId)];
-      if (prevRouteLayers) {
-        const { route, outline, shadow } = prevRouteLayers;
+    // Si no hay ninguna ruta seleccionada, mostrar todas las rutas
+    if (selectedRouteId === null) {
+      // Mostrar todas las rutas con su estilo normal
+      Object.keys(layers).forEach(id => {
+        const routeLayers = layers[parseInt(id)];
+        if (!routeLayers) return;
         
-        // Restablecer el estilo predeterminado solo para la ruta anteriormente seleccionada
+        const { route, outline, shadow } = routeLayers;
+        
+        // Asegurar visibilidad
         route.setStyle({
           weight: 6, 
           opacity: 1.0,
@@ -289,26 +285,54 @@ export function highlightRoute(
           className: 'route-shadow'
         });
         
-        // Quitar la animación de pulsación
+        // Quitar animación de pulsación
         if (typeof route.getElement === 'function') {
           const pathElement = route.getElement();
           if (pathElement) {
             pathElement.classList.remove('pulse-animation');
           }
         }
-      }
+      });
+      
+      return;
     }
     
-    // Si se selecciona una nueva ruta, aplicar el estilo destacado
-    if (selectedRouteId !== null && layers[selectedRouteId]) {
-      const selectedRouteLayers = layers[selectedRouteId];
+    // Ocultar todas las rutas que no estén seleccionadas
+    Object.keys(layers).forEach(id => {
+      const routeId = parseInt(id);
+      const routeLayers = layers[routeId];
+      if (!routeLayers) return;
       
-      if (selectedRouteLayers) {
-        const { route, outline, shadow } = selectedRouteLayers;
+      const { route, outline, shadow } = routeLayers;
+      
+      if (routeId !== selectedRouteId) {
+        // Para rutas no seleccionadas: hacer invisibles u ocultar completamente
+        route.setStyle({
+          opacity: 0, // Completamente transparente
+          className: 'route-line'
+        });
         
+        outline.setStyle({
+          opacity: 0,
+          className: 'route-outline'
+        });
+        
+        shadow.setStyle({
+          opacity: 0,
+          className: 'route-shadow'
+        });
+        
+        // Quitar animación de pulsación
+        if (typeof route.getElement === 'function') {
+          const pathElement = route.getElement();
+          if (pathElement) {
+            pathElement.classList.remove('pulse-animation');
+          }
+        }
+      } else {
+        // Para la ruta seleccionada: aplicar estilo destacado
         console.log(`Aplicando estilo destacado a la ruta ${selectedRouteId}`);
         
-        // Optimización: solo aplicar los cambios de estilo necesarios
         route.setStyle({
           weight: 10, 
           opacity: 1.0,
@@ -327,7 +351,7 @@ export function highlightRoute(
           className: 'route-shadow selected'
         });
         
-        // Agregar efecto de pulsación a la ruta seleccionada con CSS
+        // Agregar efecto de pulsación a la ruta seleccionada
         if (typeof route.getElement === 'function') {
           const pathElement = route.getElement();
           if (pathElement) {
@@ -335,10 +359,10 @@ export function highlightRoute(
           }
         }
         
-        // Asegurar el orden correcto de las capas
-        selectedRouteLayers.bringToFront();
+        // Asegurar que la ruta seleccionada está en frente
+        routeLayers.bringToFront();
         
-        // Centrar el mapa en la ruta seleccionada con animación suave
+        // Centrar el mapa en la ruta seleccionada
         try {
           const bounds = route.getBounds();
           if (bounds && typeof bounds.isValid === 'function' && bounds.isValid()) {
@@ -353,7 +377,7 @@ export function highlightRoute(
           console.warn('No se pudo centrar en la ruta:', boundError);
         }
       }
-    }
+    });
   } catch (error) {
     console.error('Error al resaltar ruta:', error);
   }
