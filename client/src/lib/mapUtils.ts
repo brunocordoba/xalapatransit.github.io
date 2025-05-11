@@ -1,85 +1,97 @@
 import L from 'leaflet';
-import { BusRoute, GeoJSONFeature } from '@shared/schema';
+import { BusRoute } from '@shared/schema';
 
-// Clase para agrupar las capas de una ruta
+// Clase para gestionar las capas de las rutas
 export class RouteLayers {
+  route: L.Polyline;
+  outline: L.Polyline;
+  shadow: L.Polyline;
+
   constructor(
-    public route: L.Polyline,
-    public outline: L.Polyline,
-    public shadow: L.Polyline
-  ) {}
-  
+    route: L.Polyline,
+    outline: L.Polyline,
+    shadow: L.Polyline
+  ) {
+    this.route = route;
+    this.outline = outline;
+    this.shadow = shadow;
+  }
+
+  // Traer al frente
   bringToFront() {
-    this.shadow.bringToBack();
+    this.shadow.bringToFront();
     this.outline.bringToFront();
     this.route.bringToFront();
   }
-  
+
+  // Eliminar todas las capas
   remove() {
-    this.route.remove();
-    this.outline.remove();
     this.shadow.remove();
+    this.outline.remove();
+    this.route.remove();
   }
 }
 
-// Initialize the map
+// Inicializar el mapa
 export function initializeMap(container: HTMLElement, center: [number, number], zoom: number): L.Map {
+  // Crear la instancia del mapa
   const map = L.map(container, {
+    center,
+    zoom,
     zoomControl: false,
-    attributionControl: true
-  }).setView(center, zoom);
-  
-  // Usar Mapbox como proveedor de mapas base (exactamente como Mapaton)
-  const mapboxToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || '';
-  
-  if (mapboxToken) {
-    // Si tenemos un token de Mapbox, usamos sus mapas de alta calidad
-    L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=' + mapboxToken, {
-      attribution: '© <a href="https://www.mapbox.com/about/maps/">Mapbox</a> © <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      maxZoom: 20,
-      tileSize: 512,
-      zoomOffset: -1
-    }).addTo(map);
-  } else {
-    // Fallback a Carto si no hay token de Mapbox
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-      subdomains: 'abcd',
-      maxZoom: 20
-    }).addTo(map);
-  }
-  
+    attributionControl: true,
+    preferCanvas: false, // SVG para mejor calidad
+    // Optimizaciones de rendimiento
+    wheelDebounceTime: 100,
+    doubleClickZoom: true,
+    dragging: true,
+    scrollWheelZoom: true
+  });
+
+  // Tile layer base
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap contributors</a>',
+    // Optimizaciones para el renderizado de tiles
+    updateWhenZooming: false,
+    updateWhenIdle: true,
+    keepBuffer: 2
+  }).addTo(map);
+
+  // Aplicar optimizaciones CSS
+  container.classList.add('optimized-map');
+
   return map;
 }
 
-// Get bus stop icon - Estilo Mapaton
+// Icono personalizado para paradas de autobús
 export function getBusStopIcon(isTerminal: boolean | null, color: string = '#ffffff'): L.DivIcon {
-  // En caso de que isTerminal sea null, tratarlo como false
-  const isActuallyTerminal = isTerminal === true;
+  const baseSize = isTerminal ? 12 : 8;
+  const borderSize = isTerminal ? 2 : 1;
+  const innerSize = baseSize - (borderSize * 2);
   
-  // Tamaños según Mapaton
-  const size = isActuallyTerminal ? 18 : 12;
-  
-  // HTML para el icono de la parada de autobús
-  // Estilo exactamente como en Mapaton: puntos blancos con borde del color de la ruta
-  const borderColor = isActuallyTerminal ? color : 'rgba(0,0,0,0.5)';
-  const borderWidth = isActuallyTerminal ? 3 : 2;
-  
+  // Optimizar creación de HTML usando template literals
   return L.divIcon({
-    className: 'bus-stop-icon',
-    html: `
-      <div 
-        class="rounded-full bg-white shadow-xl" 
-        style="
-          width: ${size}px; 
-          height: ${size}px; 
-          border: ${borderWidth}px solid ${borderColor};
-          box-shadow: 0 0 8px rgba(0,0,0,0.4);
-        "
-      ></div>
-    `,
-    iconSize: [size, size],
-    iconAnchor: [size/2, size/2]
+    className: `bus-stop-icon${isTerminal ? ' terminal' : ''}`,
+    html: `<div style="
+      width: ${baseSize}px;
+      height: ${baseSize}px;
+      border-radius: 50%;
+      background-color: white;
+      border: ${borderSize}px solid black;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    ">
+      <div style="
+        width: ${innerSize}px;
+        height: ${innerSize}px;
+        border-radius: 50%;
+        background-color: ${color};
+      "></div>
+    </div>`,
+    iconSize: [baseSize, baseSize],
+    iconAnchor: [baseSize/2, baseSize/2]
   });
 }
 
@@ -100,197 +112,168 @@ export function drawRoutes(
     if (startIndex >= routes.length) return;
     
     const endIndex = Math.min(startIndex + batchSize, routes.length);
-    const batch = routes.slice(startIndex, endIndex);
+    const currentBatch = routes.slice(startIndex, endIndex);
     
-    batch.forEach(route => {
+    currentBatch.forEach(route => {
+      // Extraer coordenadas de GeoJSON
+      let coordinates: [number, number][] = [];
       try {
-        const geoJSON = route.geoJSON as any;
-        
-        if (!geoJSON) {
-          console.warn(`La ruta ${route.id} (${route.name}) no tiene datos GeoJSON`);
-          return;
+        if (typeof route.geoJSON === 'string') {
+          const geoJSON = JSON.parse(route.geoJSON);
+          if (geoJSON && geoJSON.geometry && geoJSON.geometry.coordinates) {
+            coordinates = geoJSON.geometry.coordinates;
+          }
+        } else if (route.geoJSON && typeof route.geoJSON === 'object') {
+          // @ts-ignore
+          if (route.geoJSON.geometry && route.geoJSON.geometry.coordinates) {
+            // @ts-ignore
+            coordinates = route.geoJSON.geometry.coordinates;
+          }
         }
+      } catch (error) {
+        console.error(`Error al procesar GeoJSON para ruta ${route.id}:`, error);
+      }
+      
+      if (coordinates.length < 2) {
+        console.warn(`La ruta ${route.id} no tiene suficientes coordenadas válidas`);
+        return;
+      }
+      
+      // Simplificación avanzada para mejorar rendimiento
+      // Aplicamos una simplificación más agresiva a medida que hay más rutas y puntos
+      let simplifiedCoords = coordinates;
+      
+      if (coordinates.length > 50) {
+        // Nivel de simplificación basado en la cantidad de rutas y puntos
+        const maxPoints = routes.length > 100 ? 30 : (routes.length > 50 ? 50 : 80);
         
-        let coordinates: [number, number][] = [];
-        
-        // Manejar diferentes formatos de GeoJSON
-        if (geoJSON.type === 'Feature' && geoJSON.geometry && geoJSON.geometry.type === 'LineString') {
-          coordinates = geoJSON.geometry.coordinates;
-        } else if (geoJSON.geometry && geoJSON.geometry.coordinates) {
-          coordinates = geoJSON.geometry.coordinates;
-        } else if (geoJSON.coordinates) {
-          coordinates = geoJSON.coordinates;
-        } else if (Array.isArray(geoJSON)) {
-          coordinates = geoJSON;
-        } else {
-          console.warn(`Formato GeoJSON no reconocido para la ruta ${route.id}`);
-          return;
-        }
-        
-        // Validar que hay coordenadas y que son válidas
-        if (!coordinates || !Array.isArray(coordinates) || coordinates.length < 2) {
-          console.warn(`La ruta ${route.id} no tiene suficientes coordenadas válidas`);
-          return;
-        }
-        
-        // Simplificación avanzada para mejorar rendimiento
-        // Aplicamos una simplificación más agresiva a medida que hay más rutas y puntos
-        let simplifiedCoords = coordinates;
-        
-        if (coordinates.length > 50) {
-          // Nivel de simplificación basado en la cantidad de rutas y puntos
-          const maxPoints = routes.length > 100 ? 30 : (routes.length > 50 ? 50 : 80);
+        if (coordinates.length > maxPoints) {
+          // Simplificación adaptativa - más agresiva cuando hay más rutas
+          const ratio = maxPoints / coordinates.length;
+          const step = Math.max(1, Math.floor(1 / ratio));
           
-          if (coordinates.length > maxPoints) {
-            // Simplificación adaptativa - más agresiva cuando hay más rutas
-            const ratio = maxPoints / coordinates.length;
-            const step = Math.max(1, Math.floor(1 / ratio));
-            
-            // Asegurarse de mantener puntos críticos (inicio, fin, y algunos intermedios)
-            simplifiedCoords = [];
-            
-            // Siempre incluir el punto inicial
-            simplifiedCoords.push(coordinates[0]);
-            
-            // Muestrear puntos intermedios
-            for (let i = 1; i < coordinates.length - 1; i += step) {
-              simplifiedCoords.push(coordinates[i]);
-            }
-            
-            // Siempre incluir el punto final
-            if (coordinates.length > 1 && simplifiedCoords[simplifiedCoords.length - 1] !== coordinates[coordinates.length - 1]) {
-              simplifiedCoords.push(coordinates[coordinates.length - 1]);
-            }
-            
-            console.log(`Simplificado ruta ${route.id}: ${coordinates.length} → ${simplifiedCoords.length} puntos`);
+          // Asegurarse de mantener puntos críticos (inicio, fin, y algunos intermedios)
+          simplifiedCoords = [];
+          
+          // Siempre incluir el punto inicial
+          simplifiedCoords.push(coordinates[0]);
+          
+          // Muestrear puntos intermedios
+          for (let i = 1; i < coordinates.length - 1; i += step) {
+            simplifiedCoords.push(coordinates[i]);
           }
+          
+          // Siempre incluir el punto final
+          if (coordinates.length > 1 && simplifiedCoords[simplifiedCoords.length - 1] !== coordinates[coordinates.length - 1]) {
+            simplifiedCoords.push(coordinates[coordinates.length - 1]);
+          }
+          
+          console.log(`Simplificado ruta ${route.id}: ${coordinates.length} → ${simplifiedCoords.length} puntos`);
         }
-        
-        // Convertir coordenadas a formato Leaflet [lat, lng]
-        const leafletCoords = simplifiedCoords.map(coord => {
-          if (typeof coord[0] === 'number' && typeof coord[1] === 'number') {
-            return [coord[1], coord[0]] as [number, number];
-          }
-          return coord;
-        });
-        
-        console.log(`Dibujando ruta ${route.id} con ${leafletCoords.length} puntos`);
-        
-        // Optimización basada en la carga total - reducir calidad para mejorar rendimiento
-        const isHighLoad = routes.length > 100;
-        const useSimplifiedRendering = isHighLoad && !route.popular && selectedRouteId !== null && route.id !== selectedRouteId;
-        
-        // Renderer compartido para optimizar memoria
-        const sharedRenderer = new L.SVG({ padding: 0 });
-        
-        // Ajustar la calidad según la carga
-        const smoothFactor = useSimplifiedRendering ? 3.0 : 2.0;
-        
-        // 1. Dibujar la sombra (capa inferior) - sólo para rutas importantes en alta carga
-        const shadowLine = useSimplifiedRendering ? 
-          // Versión simplificada para alta carga (sin sombra)
-          L.polyline([], { opacity: 0 }) :
-          // Versión normal con sombra
-          L.polyline(leafletCoords, {
-            color: 'rgba(0,0,0,0.5)',
-            weight: 14,
-            opacity: 0.4,
-            lineCap: 'round',
-            lineJoin: 'round',
-            smoothFactor: smoothFactor,
-            className: 'route-shadow',
-            interactive: false,
-            renderer: sharedRenderer
-          });
-        
-        // 2. Dibujar el borde blanco (capa intermedia) - simplificado para alta carga
-        const routeOutline = useSimplifiedRendering ?
-          // Versión simplificada para alta carga (borde más delgado)
-          L.polyline(leafletCoords, {
-            color: 'white',
-            weight: 8,
-            opacity: 0.6,
-            lineCap: 'round',
-            lineJoin: 'round',
-            smoothFactor: smoothFactor,
-            className: 'route-outline simplified',
-            interactive: false,
-            renderer: sharedRenderer
-          }) :
-          // Versión normal
-          L.polyline(leafletCoords, {
-            color: 'white',
-            weight: 10,
-            opacity: 0.8,
-            lineCap: 'round',
-            lineJoin: 'round',
-            smoothFactor: smoothFactor,
-            className: 'route-outline',
-            interactive: false,
-            renderer: sharedRenderer
-          });
-        
-        // 3. Dibujar la línea de la ruta (capa superior)
-        const routeLine = L.polyline(leafletCoords, {
-          color: route.color || '#3388ff',
-          weight: useSimplifiedRendering ? 4 : 6,
-          opacity: useSimplifiedRendering ? 0.8 : 1.0,
+      }
+      
+      // Convertir coordenadas a formato Leaflet [lat, lng]
+      const leafletCoords = simplifiedCoords.map(coord => {
+        if (typeof coord[0] === 'number' && typeof coord[1] === 'number') {
+          return [coord[1], coord[0]]; // Invertir ya que GeoJSON usa [lng, lat]
+        }
+        return [0, 0]; // Valor por defecto en caso de error
+      });
+      
+      console.log(`Dibujando ruta ${route.id} con ${leafletCoords.length} puntos`);
+      
+      // Optimización basada en la carga total - reducir calidad para mejorar rendimiento
+      const isHighLoad = routes.length > 100;
+      const useSimplifiedRendering = isHighLoad && !route.popular && selectedRouteId !== null && route.id !== selectedRouteId;
+      
+      // Renderer compartido para optimizar memoria
+      const sharedRenderer = new L.SVG({ padding: 0 });
+      
+      // Ajustar la calidad según la carga
+      const smoothFactor = useSimplifiedRendering ? 3.0 : 2.0;
+      
+      // 1. Dibujar la sombra (capa inferior) - sólo para rutas importantes en alta carga
+      const shadowLine = useSimplifiedRendering ? 
+        // Versión simplificada para alta carga (sin sombra)
+        L.polyline([], { opacity: 0 }) :
+        // Versión normal con sombra
+        L.polyline(leafletCoords, {
+          color: 'rgba(0,0,0,0.5)',
+          weight: 14,
+          opacity: 0.4,
           lineCap: 'round',
           lineJoin: 'round',
           smoothFactor: smoothFactor,
-          className: `route-line${useSimplifiedRendering ? ' simplified' : ''}${isHighLoad ? ' high-load' : ''}`,
-          interactive: true, // Siempre interactiva para poder seleccionar
+          className: 'route-shadow',
+          interactive: false,
           renderer: sharedRenderer
         });
-        
-        // Añadir a la capa de grupo para mejor rendimiento en lugar de directamente al mapa
-        shadowLine.addTo(routeLayerGroup);
-        routeOutline.addTo(routeLayerGroup);
-        routeLine.addTo(routeLayerGroup);
-        
-        // Asegurar el orden correcto de las capas
-        shadowLine.bringToBack();
-        routeOutline.bringToFront();
-        routeLine.bringToFront();
-        
-        // Crear y almacenar la instancia de RouteLayers
-        const routeLayers = new RouteLayers(routeLine, routeOutline, shadowLine);
-        layers[route.id] = routeLayers;
-        
-        // Agregar eventos solo a la línea principal (ahorro de memoria)
-        routeLine.on('click', () => {
-          onRouteClick(route.id);
+      
+      // 2. Dibujar el borde blanco (capa intermedia) - simplificado para alta carga
+      const routeOutline = useSimplifiedRendering ?
+        // Versión simplificada para alta carga (borde más delgado)
+        L.polyline(leafletCoords, {
+          color: 'white',
+          weight: 8,
+          opacity: 0.6,
+          lineCap: 'round',
+          lineJoin: 'round',
+          smoothFactor: smoothFactor,
+          className: 'route-outline simplified',
+          interactive: false,
+          renderer: sharedRenderer
+        }) :
+        // Versión normal
+        L.polyline(leafletCoords, {
+          color: 'white',
+          weight: 10,
+          opacity: 0.8,
+          lineCap: 'round',
+          lineJoin: 'round',
+          smoothFactor: smoothFactor,
+          className: 'route-outline',
+          interactive: false,
+          renderer: sharedRenderer
         });
-        
-        // Optimizar el hover
-        routeLine.on('mouseover', () => {
-          if (!routeLine.options.className?.includes('hover')) {
-            routeLine.setStyle({
-              className: 'route-line hover'
-            });
-          }
-        });
-        
-        routeLine.on('mouseout', () => {
-          if (routeLine.options.className?.includes('hover') && 
-              !routeLine.options.className?.includes('selected')) {
-            routeLine.setStyle({
-              className: 'route-line'
-            });
-          }
-        });
-        
-      } catch (error) {
-        console.error(`Error drawing route ${route.id}:`, error);
-      }
+      
+      // 3. Dibujar la línea de la ruta (capa superior)
+      const routeLine = L.polyline(leafletCoords, {
+        color: route.color || '#3388ff',
+        weight: useSimplifiedRendering ? 4 : 6,
+        opacity: useSimplifiedRendering ? 0.8 : 1.0,
+        lineCap: 'round',
+        lineJoin: 'round',
+        smoothFactor: smoothFactor,
+        className: `route-line${useSimplifiedRendering ? ' simplified' : ''}${isHighLoad ? ' high-load' : ''}`,
+        interactive: true, // Siempre interactiva para poder seleccionar
+        renderer: sharedRenderer
+      });
+      
+      // Añadir a la capa de grupo para mejor rendimiento en lugar de directamente al mapa
+      shadowLine.addTo(routeLayerGroup);
+      routeOutline.addTo(routeLayerGroup);
+      routeLine.addTo(routeLayerGroup);
+      
+      // Añadir metadatos y evento click
+      routeLine.on('click', () => {
+        onRouteClick(route.id);
+      });
+      
+      // Añadir tooltip con el nombre de la ruta
+      routeLine.bindTooltip(route.name, {
+        permanent: false,
+        direction: 'auto',
+        className: 'route-tooltip'
+      });
+      
+      // Guardar referencia a las capas
+      layers[route.id] = new RouteLayers(routeLine, routeOutline, shadowLine);
     });
     
-    // Procesar el siguiente lote de rutas en el próximo frame para evitar bloquear la UI
-    if (endIndex < routes.length) {
-      setTimeout(() => {
-        processRoutesInBatches(routes, batchSize, endIndex);
-      }, 0);
-    }
+    // Procesar el siguiente lote después de un pequeño retraso
+    window.setTimeout(() => {
+      processRoutesInBatches(routes, batchSize, endIndex);
+    }, 10);
   };
   
   // Iniciar el procesamiento por lotes
@@ -299,7 +282,7 @@ export function drawRoutes(
   return { map, layers };
 }
 
-// Highlight selected route
+// Highlight selected route con optimizaciones de rendimiento
 export function highlightRoute(
   map: L.Map, 
   layers: Record<number, RouteLayers>, 
@@ -309,70 +292,83 @@ export function highlightRoute(
   try {
     console.log(`Resaltando ruta ${selectedRouteId}, hay ${Object.keys(layers).length} capas disponibles, mostrar todas: ${showAllRoutes}`);
     
-    // Procesar todas las rutas
-    Object.keys(layers).forEach(id => {
-      const routeId = parseInt(id);
-      const routeLayers = layers[routeId];
-      const isSelected = routeId === selectedRouteId;
-      const shouldBeVisible = isSelected || showAllRoutes;
-      
-      if (!routeLayers) return;
-      
-      // Configurar visibilidad y estilos
-      const baseOpacity = shouldBeVisible ? 1.0 : 0.0;
-      const outlineOpacity = shouldBeVisible ? 0.8 : 0.0;  
-      const shadowOpacity = shouldBeVisible ? 0.4 : 0.0;
-      
-      // Aplicar estilos según si es la ruta seleccionada o no
-      routeLayers.route.setStyle({
-        weight: isSelected ? 8 : 6,
-        opacity: baseOpacity,
-        className: isSelected ? 'route-line selected' : 'route-line'
-      });
-      
-      routeLayers.outline.setStyle({
-        weight: isSelected ? 12 : 10,
-        opacity: outlineOpacity,
-        className: isSelected ? 'route-outline selected' : 'route-outline'
-      });
-      
-      routeLayers.shadow.setStyle({
-        weight: isSelected ? 16 : 14,
-        opacity: shadowOpacity,
-        className: isSelected ? 'route-shadow selected' : 'route-shadow'
-      });
-      
-      // Manejar animaciones
-      if (typeof routeLayers.route.getElement === 'function') {
-        const pathElement = routeLayers.route.getElement();
-        if (pathElement) {
-          if (isSelected) {
-            pathElement.classList.add('pulse-animation');
-          } else {
-            pathElement.classList.remove('pulse-animation');
-          }
-        }
-      }
-      
-      // Si es la ruta seleccionada, asegurarse de que esté en primer plano
-      if (isSelected) {
-        routeLayers.bringToFront();
+    // Detección de alta carga
+    const isHighLoad = Object.keys(layers).length > 100;
+    
+    // Aplicar clase de alta carga al contenedor del mapa para optimizaciones CSS
+    if (isHighLoad && map.getContainer()) {
+      map.getContainer().classList.toggle('high-load-mode', true);
+    } else if (map.getContainer()) {
+      map.getContainer().classList.remove('high-load-mode');
+    }
+    
+    // Procesar todas las rutas en el siguiente frame para mejor rendimiento UI
+    requestAnimationFrame(() => {
+      // Procesar todas las rutas
+      Object.keys(layers).forEach(id => {
+        const routeId = parseInt(id);
+        const routeLayers = layers[routeId];
+        const isSelected = routeId === selectedRouteId;
+        const shouldBeVisible = isSelected || showAllRoutes;
         
-        // Centrar el mapa en la ruta seleccionada
-        try {
-          const bounds = routeLayers.route.getBounds();
-          if (bounds && typeof bounds.isValid === 'function' && bounds.isValid()) {
-            map.fitBounds(bounds, {
-              padding: [80, 80],
-              maxZoom: 15,
-              animate: true,
-              duration: 0.5
-            });
+        if (!routeLayers) return;
+        
+        // Optimización: Usar distintos estilos para alta carga
+        const baseOpacity = shouldBeVisible ? (isHighLoad && !isSelected ? 0.8 : 1.0) : 0.0;
+        const outlineOpacity = shouldBeVisible ? (isHighLoad && !isSelected ? 0.6 : 0.8) : 0.0;  
+        const shadowOpacity = shouldBeVisible ? (isHighLoad && !isSelected ? 0.2 : 0.4) : 0.0;
+        
+        // Aplicar estilos según si es la ruta seleccionada o no
+        routeLayers.route.setStyle({
+          weight: isSelected ? 8 : 6,
+          opacity: baseOpacity,
+          className: isSelected ? 'route-line selected' : 'route-line'
+        });
+        
+        routeLayers.outline.setStyle({
+          weight: isSelected ? 12 : 10,
+          opacity: outlineOpacity,
+          className: isSelected ? 'route-outline selected' : 'route-outline'
+        });
+        
+        routeLayers.shadow.setStyle({
+          weight: isSelected ? 16 : 14,
+          opacity: shadowOpacity,
+          className: isSelected ? 'route-shadow selected' : 'route-shadow'
+        });
+        
+        // Manejar animaciones
+        if (typeof routeLayers.route.getElement === 'function') {
+          const pathElement = routeLayers.route.getElement();
+          if (pathElement) {
+            if (isSelected) {
+              pathElement.classList.add('pulse-animation');
+            } else {
+              pathElement.classList.remove('pulse-animation');
+            }
           }
-        } catch (e) {
-          console.warn('No se pudo centrar en la ruta:', e);
         }
-      }
+        
+        // Si es la ruta seleccionada, asegurarse de que esté en primer plano
+        if (isSelected) {
+          routeLayers.bringToFront();
+          
+          // Centrar el mapa en la ruta seleccionada
+          try {
+            const bounds = routeLayers.route.getBounds();
+            if (bounds && typeof bounds.isValid === 'function' && bounds.isValid()) {
+              map.fitBounds(bounds, {
+                padding: [80, 80],
+                maxZoom: 15,
+                animate: true,
+                duration: 0.5
+              });
+            }
+          } catch (e) {
+            console.warn('No se pudo centrar en la ruta:', e);
+          }
+        }
+      });
     });
   } catch (error) {
     console.error('Error al resaltar ruta:', error);
@@ -427,14 +423,14 @@ export function addBusStops(
   // Combinar para obtener las paradas a mostrar
   const stopsToShow = [...terminalStops, ...regularStops];
   
-  // Usar procesamiento por lotes para no bloquear UI
+  // Procesar paradas por lotes para no bloquear el hilo principal
   const batchSize = 10;
   
   const processBatch = (startIndex: number) => {
     const endIndex = Math.min(startIndex + batchSize, stopsToShow.length);
-    const batch = stopsToShow.slice(startIndex, endIndex);
+    const currentBatch = stopsToShow.slice(startIndex, endIndex);
     
-    batch.forEach((stop) => {
+    currentBatch.forEach(stop => {
       try {
         // Asegurar que isTerminal es un booleano
         const isTerminal = stop.isTerminal === true;
