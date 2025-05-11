@@ -343,58 +343,104 @@ export function addBusStops(
 ): L.Marker[] {
   const markers: L.Marker[] = [];
   
+  // Limpiar paradas existentes para evitar duplicados
+  map.eachLayer((layer) => {
+    if (layer instanceof L.Marker && layer.options.stopRouteId === routeId) {
+      map.removeLayer(layer);
+    }
+  });
+  
+  // Si no hay paradas, mostrar mensaje en la consola pero no fallar
+  if (!stops || !Array.isArray(stops) || stops.length === 0) {
+    console.log(`No hay paradas disponibles para la ruta ${routeId}`);
+    return markers;
+  }
+  
+  console.log(`Añadiendo ${stops.length} paradas para la ruta ${routeId}`);
+  
   // Usar un grupo de marcadores para mejor rendimiento
   const markerGroup = L.layerGroup().addTo(map);
   
   // Limitar el número de paradas si hay demasiadas (para mejor rendimiento)
   const maxStops = 50;
-  const stopsToShow = stops.length > maxStops ? 
-    // Siempre mostrar terminales si hay demasiadas paradas
-    [...stops.filter(s => s.isTerminal === true), 
-     ...stops.filter(s => s.isTerminal !== true).slice(0, maxStops - stops.filter(s => s.isTerminal === true).length)] :
-    stops;
   
-  stopsToShow.forEach((stop) => {
-    // Asegurar que isTerminal es un booleano
-    const isTerminal = stop.isTerminal === true;
-    const icon = getBusStopIcon(isTerminal, color);
-    const lat = parseFloat(stop.latitude);
-    const lng = parseFloat(stop.longitude);
+  // Asegurarnos de que las terminales siempre se muestren
+  let terminalStops = stops.filter(s => s.isTerminal === true);
+  let regularStops = stops.filter(s => s.isTerminal !== true);
+  
+  // Limitar paradas regulares si hay demasiadas
+  if (regularStops.length > maxStops - terminalStops.length) {
+    regularStops = regularStops.slice(0, maxStops - terminalStops.length);
+  }
+  
+  // Combinar para obtener las paradas a mostrar
+  const stopsToShow = [...terminalStops, ...regularStops];
+  
+  // Usar procesamiento por lotes para no bloquear UI
+  const batchSize = 10;
+  
+  const processBatch = (startIndex: number) => {
+    const endIndex = Math.min(startIndex + batchSize, stopsToShow.length);
+    const batch = stopsToShow.slice(startIndex, endIndex);
     
-    if (isNaN(lat) || isNaN(lng)) {
-      console.warn(`Coordenadas inválidas para parada ${stop.name}`);
-      return;
-    }
-    
-    // Crear el marcador y añadirlo al grupo de capas en lugar de directamente al mapa
-    const marker = L.marker([lat, lng], { 
-      icon,
-      // Reducir interacciones para mejorar rendimiento
-      interactive: true,
-      bubblingMouseEvents: true
-    }).addTo(markerGroup);
-    
-    // Crear el contenido del popup una vez y reutilizarlo
-    const popupContent = `
-      <div class="text-sm font-medium bus-stop-popup">
-        <div class="font-bold">${stop.name}</div>
-        <div class="text-xs text-gray-600">Ruta ID: ${routeId}</div>
-        ${stop.terminalType ? `<div class="text-xs">${stop.terminalType === 'first' ? 'Terminal de origen' : 'Terminal de destino'}</div>` : ''}
-      </div>
-    `;
-    
-    // Configurar popup con opciones optimizadas
-    marker.bindPopup(popupContent, {
-      closeButton: false,
-      offset: L.point(0, -8),
-      className: 'bus-stop-popup',
-      maxWidth: 200,
-      minWidth: 150,
-      autoPan: false // Evitar costosos pans automáticos
+    batch.forEach((stop) => {
+      try {
+        // Asegurar que isTerminal es un booleano
+        const isTerminal = stop.isTerminal === true;
+        const icon = getBusStopIcon(isTerminal, color);
+        
+        // Convertir coordenadas a números
+        const lat = parseFloat(stop.latitude);
+        const lng = parseFloat(stop.longitude);
+        
+        if (isNaN(lat) || isNaN(lng)) {
+          console.warn(`Coordenadas inválidas para parada ${stop.name}`);
+          return;
+        }
+        
+        // Crear el marcador con metadatos
+        const marker = L.marker([lat, lng], { 
+          icon,
+          // Añadir metadata para facilitar limpieza posterior
+          stopRouteId: routeId,
+          // Optimizaciones de rendimiento
+          interactive: true,
+          bubblingMouseEvents: true
+        }).addTo(markerGroup);
+        
+        // Crear popup ligero
+        const popupContent = `
+          <div class="bus-stop-popup p-2">
+            <div class="font-bold text-sm">${stop.name || 'Parada sin nombre'}</div>
+            <div class="text-xs text-gray-600">Ruta: ${routeId}</div>
+            ${isTerminal ? `<div class="text-xs font-medium mt-1">Terminal</div>` : ''}
+          </div>
+        `;
+        
+        // Configurar popup con opciones optimizadas
+        marker.bindPopup(popupContent, {
+          closeButton: false,
+          offset: L.point(0, -8),
+          className: 'bus-stop-popup',
+          maxWidth: 180,
+          minWidth: 120,
+          autoPan: false // Evitar costosos pans automáticos
+        });
+        
+        markers.push(marker);
+      } catch (error) {
+        console.error(`Error al añadir parada: ${error}`);
+      }
     });
     
-    markers.push(marker);
-  });
+    // Si hay más paradas, programar el siguiente lote
+    if (endIndex < stopsToShow.length) {
+      setTimeout(() => processBatch(endIndex), 10);
+    }
+  };
+  
+  // Iniciar el procesamiento por lotes
+  processBatch(0);
   
   return markers;
 }
