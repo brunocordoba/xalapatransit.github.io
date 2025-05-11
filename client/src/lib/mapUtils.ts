@@ -122,10 +122,10 @@ export function drawRoutes(
   
   // Procesamos las rutas en bloques para evitar bloquear el hilo principal
   const processRoutesInBatches = (routesToProcess: BusRoute[], batchSize: number = 20, startIndex: number = 0) => {
-    if (startIndex >= routes.length) return;
+    if (startIndex >= routesToProcess.length) return;
     
-    const endIndex = Math.min(startIndex + batchSize, routes.length);
-    const currentBatch = routes.slice(startIndex, endIndex);
+    const endIndex = Math.min(startIndex + batchSize, routesToProcess.length);
+    const currentBatch = routesToProcess.slice(startIndex, endIndex);
     
     currentBatch.forEach(route => {
       // Extraer coordenadas de GeoJSON
@@ -285,12 +285,12 @@ export function drawRoutes(
     
     // Procesar el siguiente lote después de un pequeño retraso
     window.setTimeout(() => {
-      processRoutesInBatches(routes, batchSize, endIndex);
+      processRoutesInBatches(routesToProcess, batchSize, endIndex);
     }, 10);
   };
   
-  // Iniciar el procesamiento por lotes
-  processRoutesInBatches(routes);
+  // Iniciar el procesamiento por lotes con las rutas filtradas
+  processRoutesInBatches(filteredRoutes);
   
   return { map, layers };
 }

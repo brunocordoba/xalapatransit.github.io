@@ -110,6 +110,11 @@ export default function MapView({
           }
           
           // Dibujar las rutas con la función optimizada, pasando el ID de ruta seleccionada
+          // MEJORA: Si no queremos mostrar todas las rutas, solo dibujamos la ruta seleccionada
+          const routeIdForFiltering = (!showAllRoutes && selectedRouteId) ? selectedRouteId : null;
+          
+          console.log(`DIBUJANDO RUTAS: selectedRouteId=${selectedRouteId}, showAllRoutes=${showAllRoutes}, routeIdForFiltering=${routeIdForFiltering}`);
+          
           const { layers, map } = drawRoutes(
             mapInstanceRef.current!, 
             routesToRender, 
@@ -119,7 +124,7 @@ export default function MapView({
                 onRouteSelect(routeId);
               }
             },
-            selectedRouteId // Pasar ID de ruta seleccionada para optimizaciones
+            routeIdForFiltering // Filtrar solo si tenemos ruta seleccionada Y no queremos mostrar todas
           );
           
           routeLayersRef.current = layers;
@@ -135,9 +140,17 @@ export default function MapView({
                 (routeId) => {
                   if (onRouteSelect) onRouteSelect(routeId);
                 },
-                selectedRouteId
+                selectedRouteId // Siempre pasamos el ID para esa ruta específica
               );
               routeLayersRef.current[selectedRouteId] = singleResult.layers[selectedRouteId];
+              
+              // Forzar aplicación de visibilidad
+              if (!showAllRoutes) {
+                console.log(`Aplicando ocultar rutas inmediatamente después de añadir la ruta seleccionada ${selectedRouteId}`);
+                setTimeout(() => {
+                  highlightRoute(mapInstanceRef.current!, routeLayersRef.current, selectedRouteId, false);
+                }, 10);
+              }
             }
           }
         } catch (error) {
@@ -158,7 +171,7 @@ export default function MapView({
         window.clearTimeout(drawTimeoutRef.current);
       }
     };
-  }, [mapReady, routes, selectedRouteId, onRouteSelect]);
+  }, [mapReady, routes, selectedRouteId, showAllRoutes, onRouteSelect]);
   
   // Destacar la ruta seleccionada con optimización
   useEffect(() => {
