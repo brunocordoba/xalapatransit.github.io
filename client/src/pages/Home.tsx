@@ -76,6 +76,7 @@ export default function Home() {
           toggleSidebar={toggleSidebar}
           isSidebarVisible={showSidebar}
           isMobile={isMobile}
+          onRouteSelect={handleRouteSelect}
         />
         
         {selectedRoute && (

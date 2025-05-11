@@ -11,6 +11,7 @@ type MapViewProps = {
   toggleSidebar: () => void;
   isSidebarVisible: boolean;
   isMobile: boolean;
+  onRouteSelect?: (routeId: number) => void;
 };
 
 export default function MapView({ 
@@ -18,7 +19,8 @@ export default function MapView({
   selectedRouteId, 
   toggleSidebar, 
   isSidebarVisible,
-  isMobile 
+  isMobile,
+  onRouteSelect 
 }: MapViewProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -47,15 +49,15 @@ export default function MapView({
     if (mapReady && mapInstanceRef.current && routes.length > 0) {
       const { layers, map } = drawRoutes(mapInstanceRef.current, routes, (routeId) => {
         // When a route is clicked, handle selection
-        if (routeId !== selectedRouteId) {
+        if (routeId !== selectedRouteId && onRouteSelect) {
           // If clicking a different route, select it
-          // You could call a function here to update the selectedRouteId state in the parent component
+          onRouteSelect(routeId);
         }
       });
       
       routeLayersRef.current = layers;
     }
-  }, [mapReady, routes]);
+  }, [mapReady, routes, selectedRouteId, onRouteSelect]);
   
   // Highlight selected route
   useEffect(() => {
