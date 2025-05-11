@@ -3,12 +3,23 @@ import { BusRoute, GeoJSONFeature } from '@shared/schema';
 
 // Initialize the map
 export function initializeMap(container: HTMLElement, center: [number, number], zoom: number): L.Map {
-  const map = L.map(container).setView(center, zoom);
+  const map = L.map(container, {
+    zoomControl: false,
+    attributionControl: true
+  }).setView(center, zoom);
   
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  // Carto Voyager map - mejor detalle de calles similar a Mapaton.org
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 20
   }).addTo(map);
+  
+  // Alternativa: Mapbox Street (se requiere key)
+  // L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=YOUR_MAPBOX_ACCESS_TOKEN', {
+  //   attribution: '© <a href="https://www.mapbox.com/about/maps/">Mapbox</a> © <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  //   maxZoom: 20
+  // }).addTo(map);
   
   return map;
 }
@@ -82,21 +93,65 @@ export function drawRoutes(
       // Debug
       console.log(`Dibujando ruta ${route.id} con ${leafletCoords.length} puntos`);
       
-      // Draw the route line
+      // Draw the route line con estilo mejorado similar a Mapaton.org
       const routeLine = L.polyline(leafletCoords, {
         color: route.color || '#3388ff',
-        weight: 5,
-        opacity: 0.7
+        weight: 6, // Línea más gruesa
+        opacity: 0.9, // Más opaca
+        lineCap: 'round', // Extremos redondeados
+        lineJoin: 'round', // Uniones redondeadas
+        smoothFactor: 1, // Valor menor para más precisión 
+        // Efecto de sombra para dar profundidad
+        className: 'route-line',
       }).addTo(map);
+      
+      // Agregar un borde blanco para mejorar la visibilidad
+      const routeOutline = L.polyline(leafletCoords, {
+        color: 'white',
+        weight: 9, // Ligeramente más ancho
+        opacity: 0.5,
+        lineCap: 'round',
+        lineJoin: 'round',
+        smoothFactor: 1,
+        className: 'route-outline',
+      }).addTo(map);
+      
+      // Asegurarse que la línea está por encima del borde
+      routeLine.bringToFront();
       
       // Store reference to the layer
       layers[route.id] = routeLine;
       
-      // Add click event to the route
+      // Add click events to both the outline and the line
       routeLine.on('click', () => {
         console.log(`Ruta ${route.id} seleccionada`);
         onRouteClick(route.id);
       });
+      
+      routeOutline.on('click', () => {
+        console.log(`Ruta ${route.id} seleccionada (desde borde)`);
+        onRouteClick(route.id);
+      });
+      
+      // Mejorar la interacción al pasar el ratón
+      routeLine.on('mouseover', () => {
+        if (!routeLine.options.className?.includes('hover')) {
+          routeLine.setStyle({
+            weight: 8,
+            className: 'route-line hover'
+          });
+        }
+      });
+      
+      routeLine.on('mouseout', () => {
+        if (!layers[route.id].options.className?.includes('selected')) {
+          routeLine.setStyle({
+            weight: 6,
+            className: 'route-line'
+          });
+        }
+      });
+      
     } catch (error) {
       console.error(`Error drawing route ${route.id}:`, error);
     }
@@ -126,33 +181,44 @@ export function highlightRoute(
         
         // Estilo predeterminado para rutas no seleccionadas
         layer.setStyle({
-          weight: 5,
+          weight: 6, 
           opacity: 0.7,
-          dashArray: ''
+          className: 'route-line'
         });
         
         // Bring selected route to front and apply highlight style
         if (selectedRouteId !== null && routeId === selectedRouteId) {
           console.log(`Aplicando estilo destacado a la ruta ${routeId}`);
           
-          // Estilo para la ruta seleccionada
+          // Estilo para la ruta seleccionada (siguiendo el estilo de Mapaton.org)
           layer.setStyle({
             weight: 10,
             opacity: 1.0,
-            dashArray: ''
+            dashArray: '',
+            className: 'route-line selected'
           });
+          
+          // Agregar efecto de pulsación a la ruta seleccionada con CSS
+          if (typeof layer.getElement === 'function') {
+            const pathElement = layer.getElement();
+            if (pathElement) {
+              pathElement.classList.add('pulse-animation');
+            }
+          }
           
           if (typeof layer.bringToFront === 'function') {
             layer.bringToFront();
           }
           
-          // Opcionalmente, centrar el mapa en la ruta seleccionada
+          // Centrar el mapa en la ruta seleccionada con animación suave
           try {
             const bounds = layer.getBounds();
             if (bounds && typeof bounds.isValid === 'function' && bounds.isValid()) {
               map.fitBounds(bounds, {
-                padding: [50, 50],
-                maxZoom: 15
+                padding: [100, 100], // Más padding para mejor visualización
+                maxZoom: 15,
+                animate: true,
+                duration: 0.5 // Animación rápida pero suave
               });
             }
           } catch (boundError) {

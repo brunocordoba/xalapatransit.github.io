@@ -1,0 +1,71 @@
+/* Estilos para el mapa y sus elementos */
+
+/* Estilos para las líneas de ruta */
+.route-line {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: stroke-width 0.3s ease, opacity 0.3s ease;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+}
+
+.route-line.hover {
+  cursor: pointer;
+}
+
+.route-line.selected {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+  z-index: 1000 !important;
+}
+
+.route-outline {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  z-index: 400;
+}
+
+/* Animación de pulsación para la ruta seleccionada */
+@keyframes pulse {
+  0% {
+    stroke-width: 10px;
+    stroke-opacity: 1;
+  }
+  50% {
+    stroke-width: 12px;
+    stroke-opacity: 0.8;
+  }
+  100% {
+    stroke-width: 10px;
+    stroke-opacity: 1;
+  }
+}
+
+.pulse-animation {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Estilos para los marcadores de paradas */
+.bus-stop-icon {
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.3));
+  transition: transform 0.2s ease;
+}
+
+.bus-stop-icon:hover {
+  transform: scale(1.2);
+  z-index: 1000 !important;
+  cursor: pointer;
+}
+
+/* Mejoras de accesibilidad - contraste para textos */
+.leaflet-popup-content {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #333;
+}
+
+.leaflet-popup-content .font-bold {
+  font-weight: 600;
+  color: #000;
+}
+
+.leaflet-popup-content .text-gray-600 {
+  color: #666;
+}
