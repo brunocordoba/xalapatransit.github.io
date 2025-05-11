@@ -1,20 +1,25 @@
-/* Estilos para el mapa y sus elementos */
+/* Estilos optimizados para el mapa */
 
-/* Estilos para las líneas de ruta */
+/* Estilos para las líneas de ruta - hardware acceleration */
 .route-line {
   stroke-linecap: round;
   stroke-linejoin: round;
-  transition: stroke-width 0.3s ease, opacity 0.3s ease;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+  will-change: stroke-width, opacity;
+  transition: stroke-width 0.2s ease, opacity 0.2s ease;
+  /* Usar sombras más ligeras para mejor rendimiento */
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.15));
 }
 
 .route-line.hover {
   cursor: pointer;
+  stroke-width: 8px !important;
 }
 
 .route-line.selected {
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+  /* Reducir uso de sombras para mejor rendimiento */
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.3)); 
   z-index: 1000 !important;
+  will-change: stroke-width;
 }
 
 .route-outline {
@@ -23,49 +28,101 @@
   z-index: 400;
 }
 
-/* Animación de pulsación para la ruta seleccionada */
+.route-shadow {
+  /* Desactivar efectos de transición en sombras para mejorar rendimiento */
+  transition: none;
+}
+
+/* Animación optimizada para rutas seleccionadas */
 @keyframes pulse {
   0% {
-    stroke-width: 10px;
+    stroke-width: 8px;
     stroke-opacity: 1;
   }
   50% {
-    stroke-width: 12px;
-    stroke-opacity: 0.8;
+    stroke-width: 10px;
+    stroke-opacity: 0.9;
   }
   100% {
-    stroke-width: 10px;
+    stroke-width: 8px;
     stroke-opacity: 1;
   }
 }
 
 .pulse-animation {
-  animation: pulse 1.5s ease-in-out infinite;
+  animation: pulse 2s ease-in-out infinite;
+  /* Delegar animación a GPU cuando sea posible */
+  transform: translateZ(0);
+  will-change: stroke-width;
 }
 
-/* Estilos para los marcadores de paradas */
+/* Estilos para los marcadores de paradas - optimizado */
 .bus-stop-icon {
-  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.3));
-  transition: transform 0.2s ease;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+  will-change: transform;
+  transition: transform 0.15s ease-out;
 }
 
 .bus-stop-icon:hover {
-  transform: scale(1.2);
+  transform: scale(1.15);
   z-index: 1000 !important;
   cursor: pointer;
 }
 
-/* Mejoras de accesibilidad - contraste para textos */
-.leaflet-popup-content {
+/* Estilo para popups de paradas */
+.bus-stop-popup {
+  min-width: 150px;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   color: #333;
 }
 
-.leaflet-popup-content .font-bold {
+.bus-stop-popup .font-bold {
   font-weight: 600;
   color: #000;
 }
 
-.leaflet-popup-content .text-gray-600 {
-  color: #666;
+.bus-stop-popup .text-gray-600 {
+  color: #444;
+}
+
+/* Optimización para mapas con muchas rutas */
+.leaflet-container {
+  position: relative;
+  /* Activar aceleración por hardware cuando sea posible */
+  transform: translateZ(0);
+  /* Mejorar la suavidad del desplazamiento */
+  backface-visibility: hidden;
+  perspective: 1000;
+}
+
+/* Reducir el trabajo de renderizado durante panning */
+.leaflet-dragging .leaflet-layer {
+  transition: none !important;
+}
+
+/* Estado de carga para cuando se están dibujando muchas rutas */
+.loading-routes {
+  cursor: progress !important;
+}
+
+/* Optimizaciones específicas para dispositivos móviles */
+@media (max-width: 768px) {
+  .route-line {
+    /* Líneas más delgadas en móvil para mejor rendimiento */
+    stroke-width: 4px !important;
+  }
+  
+  .route-outline {
+    stroke-width: 8px !important;
+  }
+  
+  .route-shadow {
+    stroke-width: 10px !important;
+    opacity: 0.3 !important;
+  }
+  
+  /* Desactivar animaciones en móvil para mejor rendimiento */
+  .pulse-animation {
+    animation: none !important;
+  }
 }

@@ -61,45 +61,70 @@ export default function MapView({
     };
   }, []);
   
-  // Draw all routes on the map
+  // Variable para almacenar un identificador de timeout para debouncing
+  const drawTimeoutRef = useRef<number | null>(null);
+  
+  // Dibujar todas las rutas en el mapa con optimización
   useEffect(() => {
     if (mapReady && mapInstanceRef.current && routes.length > 0) {
-      const { layers, map } = drawRoutes(mapInstanceRef.current, routes, (routeId) => {
-        // When a route is clicked, handle selection
-        if (routeId !== selectedRouteId && onRouteSelect) {
-          // If clicking a different route, select it
-          onRouteSelect(routeId);
-        }
-      });
+      // Debounce para evitar múltiples renderizados en cambios rápidos
+      if (drawTimeoutRef.current) {
+        window.clearTimeout(drawTimeoutRef.current);
+      }
       
-      routeLayersRef.current = layers;
+      // Usar un loading state para indicar que estamos dibujando
+      mapInstanceRef.current.getContainer().classList.add('loading-routes');
+      
+      // Dibujar rutas con un leve retraso para permitir al DOM actualizarse
+      drawTimeoutRef.current = window.setTimeout(() => {
+        const { layers, map } = drawRoutes(mapInstanceRef.current!, routes, (routeId) => {
+          // Cuando se hace clic en una ruta, manejar la selección
+          if (routeId !== selectedRouteId && onRouteSelect) {
+            onRouteSelect(routeId);
+          }
+        });
+        
+        routeLayersRef.current = layers;
+        mapInstanceRef.current!.getContainer().classList.remove('loading-routes');
+        drawTimeoutRef.current = null;
+      }, 50);
     }
+    
+    // Limpieza en desmontaje
+    return () => {
+      if (drawTimeoutRef.current) {
+        window.clearTimeout(drawTimeoutRef.current);
+      }
+    };
   }, [mapReady, routes, selectedRouteId, onRouteSelect]);
   
-  // Highlight selected route
+  // Destacar la ruta seleccionada con optimización
   useEffect(() => {
-    if (mapReady && mapInstanceRef.current && routes.length > 0) {
+    if (mapReady && mapInstanceRef.current && routes.length > 0 && Object.keys(routeLayersRef.current).length > 0) {
       highlightRoute(mapInstanceRef.current, routeLayersRef.current, selectedRouteId);
     }
-  }, [mapReady, selectedRouteId, routes]);
+  }, [mapReady, selectedRouteId]); // Eliminar la dependencia 'routes' para evitar recálculos innecesarios
   
-  // Add bus stops to map when a route is selected and stops are loaded
+  // Añadir paradas al mapa con optimización
   useEffect(() => {
-    if (!mapReady || !mapInstanceRef.current || !selectedRouteId || !stops || stops.length === 0) {
+    if (!mapReady || !mapInstanceRef.current || !selectedRouteId) {
       return;
     }
     
-    // Clear previous stop markers
+    // Limpiar marcadores anteriores
     stopMarkersRef.current.forEach(marker => marker.remove());
     stopMarkersRef.current = [];
     
-    // Find selected route
+    // Si no hay paradas o son vacías, terminamos
+    if (!stops || stops.length === 0) return;
+    
+    // Encontrar la ruta seleccionada
     const selectedRoute = routes.find(route => route.id === selectedRouteId);
     if (!selectedRoute) return;
     
     console.log(`Mostrando ${stops.length} paradas para la ruta ${selectedRouteId}`);
     
-    // Add new stop markers
+    // Añadir nuevos marcadores de parada (optimizado)
     const newMarkers = addBusStops(
       mapInstanceRef.current,
       selectedRouteId,
@@ -108,8 +133,7 @@ export default function MapView({
     );
     
     stopMarkersRef.current = newMarkers;
-    
-  }, [mapReady, selectedRouteId, stops, routes]);
+  }, [mapReady, selectedRouteId, stops]);
   
   const handleZoomIn = () => {
     if (mapInstanceRef.current) {
