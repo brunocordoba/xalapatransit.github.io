@@ -285,6 +285,11 @@ export function highlightRoute(
           className: 'route-shadow'
         });
         
+        // Hacer visible la ruta
+        route.getElement()?.setAttribute('style', '');
+        outline.getElement()?.setAttribute('style', '');
+        shadow.getElement()?.setAttribute('style', '');
+        
         // Quitar animación de pulsación
         if (typeof route.getElement === 'function') {
           const pathElement = route.getElement();
@@ -306,32 +311,30 @@ export function highlightRoute(
       const { route, outline, shadow } = routeLayers;
       
       if (routeId !== selectedRouteId) {
-        // Para rutas no seleccionadas: hacer invisibles u ocultar completamente
-        route.setStyle({
-          opacity: 0, // Completamente transparente
-          className: 'route-line'
-        });
-        
-        outline.setStyle({
-          opacity: 0,
-          className: 'route-outline'
-        });
-        
-        shadow.setStyle({
-          opacity: 0,
-          className: 'route-shadow'
-        });
-        
-        // Quitar animación de pulsación
-        if (typeof route.getElement === 'function') {
-          const pathElement = route.getElement();
-          if (pathElement) {
-            pathElement.classList.remove('pulse-animation');
-          }
+        // Para rutas no seleccionadas: ocultar completamente usando display:none
+        if (route.getElement()) {
+          route.getElement()?.setAttribute('style', 'display:none');
+        }
+        if (outline.getElement()) {
+          outline.getElement()?.setAttribute('style', 'display:none');
+        }
+        if (shadow.getElement()) {
+          shadow.getElement()?.setAttribute('style', 'display:none');
         }
       } else {
-        // Para la ruta seleccionada: aplicar estilo destacado
+        // Para la ruta seleccionada: aplicar estilo destacado y asegurar visibilidad
         console.log(`Aplicando estilo destacado a la ruta ${selectedRouteId}`);
+        
+        // Hacer seguro que la ruta es visible
+        if (route.getElement()) {
+          route.getElement()?.setAttribute('style', '');
+        }
+        if (outline.getElement()) {
+          outline.getElement()?.setAttribute('style', '');
+        }
+        if (shadow.getElement()) {
+          shadow.getElement()?.setAttribute('style', '');
+        }
         
         route.setStyle({
           weight: 10, 

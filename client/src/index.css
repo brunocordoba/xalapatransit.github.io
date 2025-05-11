@@ -94,6 +94,26 @@
   }
 }
 
+/* Clase para animación de pulsación */
+.pulse-animation {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    stroke-width: 6;
+    stroke-opacity: 0.8;
+  }
+  50% {
+    stroke-width: 8;
+    stroke-opacity: 1;
+  }
+  100% {
+    stroke-width: 6;
+    stroke-opacity: 0.8;
+  }
+}
+
 /* Estilos para las paradas de autobús */
 .bus-stop-icon {
   transition: all 0.2s ease;
