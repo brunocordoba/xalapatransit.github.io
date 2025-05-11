@@ -155,37 +155,79 @@ async function importStops() {
 
 // Función auxiliar para determinar la zona de una ruta
 function determineZone(properties: any): string {
-  // Esta función debe adaptarse a tus datos específicos
-  // Ejemplo simple: asignar zonas basadas en algún criterio
+  // Esta función está adaptada para los datos de Mapaton.org
   const zones = ['norte', 'sur', 'este', 'oeste', 'centro'];
   
-  if (properties.zona) {
-    // Si el shapefile tiene una propiedad de zona, úsala
-    const zoneName = properties.zona.toLowerCase();
-    if (zones.includes(zoneName)) {
-      return zoneName;
+  // Mapaton puede tener información sobre la región o área
+  if (properties.region || properties.area || properties.zona) {
+    const regionName = (properties.region || properties.area || properties.zona || '').toLowerCase();
+    
+    // Mapeamos regiones típicas de Xalapa a nuestras zonas
+    if (regionName.includes('norte') || regionName.includes('animas')) {
+      return 'norte';
+    } else if (regionName.includes('sur') || regionName.includes('trancas')) {
+      return 'sur';
+    } else if (regionName.includes('este') || regionName.includes('universidad')) {
+      return 'este';
+    } else if (regionName.includes('oeste') || regionName.includes('coapexpan')) {
+      return 'oeste';
+    } else if (regionName.includes('centro')) {
+      return 'centro';
     }
   }
   
-  // Asignar una zona aleatoria si no hay información
+  // Si no podemos determinar la zona por el nombre de región, usamos el origen/destino
+  if (properties.origen && properties.destino) {
+    const routePath = `${properties.origen} ${properties.destino}`.toLowerCase();
+    
+    if (routePath.includes('centro')) {
+      return 'centro';
+    } else if (routePath.includes('universidad') || routePath.includes('usbi')) {
+      return 'este';
+    } else if (routePath.includes('animas') || routePath.includes('museo')) {
+      return 'norte';
+    } else if (routePath.includes('trancas') || routePath.includes('soriana')) {
+      return 'sur';
+    } else if (routePath.includes('coapexpan') || routePath.includes('sumidero')) {
+      return 'oeste';
+    }
+  }
+  
+  // Si todo lo demás falla, asignamos una zona basada en el ID de ruta o aleatoriamente
+  if (properties.id || properties.ID || properties.route_id) {
+    const routeId = parseInt(properties.id || properties.ID || properties.route_id);
+    return zones[routeId % zones.length];
+  }
+  
+  // Fallback final: zona aleatoria
   return zones[Math.floor(Math.random() * zones.length)];
 }
 
 // Función auxiliar para generar un nombre corto para la ruta
 function generateShortName(routeName: string): string {
-  // Ejemplo: "Ruta 1 - Centro → Animas" -> "R1"
-  const match = routeName.match(/Ruta (\d+)/i);
-  if (match && match[1]) {
-    return `R${match[1]}`;
+  // Específicamente para Mapaton: buscar patrones comunes de nomenclatura
+  
+  // Patrón: números en el nombre de la ruta
+  const numMatch = routeName.match(/(\d+)/);
+  if (numMatch && numMatch[1]) {
+    return `R${numMatch[1]}`;
   }
   
-  // Si no hay un patrón claro, usar las primeras letras
-  const words = routeName.split(/\s+/).filter(word => word.length > 0);
-  if (words.length >= 2) {
-    return `${words[0][0]}${words[1][0]}`.toUpperCase();
+  // Patrón: formato "NOMBRE - DESTINO" o "NOMBRE → DESTINO"
+  const directionMatch = routeName.match(/(.+?)(?:\s*[-→]\s*)(.+)/);
+  if (directionMatch) {
+    // Tomar la primera letra de cada parte
+    return `${directionMatch[1].charAt(0)}${directionMatch[2].charAt(0)}`.toUpperCase();
   }
   
-  // Fallback
+  // Si hay "ORIGEN-DESTINO" sin guiones especiales
+  const parts = routeName.split(/\s+/).filter(word => word.length > 0);
+  if (parts.length >= 2) {
+    // Usar primeras letras de las dos palabras principales
+    return `${parts[0].charAt(0)}${parts[parts.length-1].charAt(0)}`.toUpperCase();
+  }
+  
+  // Fallback: primeras dos letras
   return routeName.substring(0, 2).toUpperCase();
 }
 
@@ -217,14 +259,51 @@ function generateFrequency(): string {
 
 // Función auxiliar para determinar a qué ruta pertenece una parada
 function determineRouteForStop(stopProperties: any, routes: any[]): number | null {
-  // Esta función debe adaptarse a tus datos específicos
-  // Ejemplo: si el shapefile de paradas tiene un ID de ruta
-  if (stopProperties.routeId) {
-    const route = routes.find(r => r.id === stopProperties.routeId);
+  // Esta función está adaptada para los datos de Mapaton.org
+  
+  // Comprobamos si hay identificadores de ruta en los datos
+  if (stopProperties.route_id || stopProperties.routeId || stopProperties.ruta_id) {
+    const routeId = parseInt(stopProperties.route_id || stopProperties.routeId || stopProperties.ruta_id);
+    const route = routes.find(r => r.id === routeId);
     if (route) return route.id;
   }
   
-  // Si no hay una correspondencia clara, asignar a una ruta aleatoria
+  // Comprobamos si hay un nombre de ruta que podamos relacionar
+  if (stopProperties.route_name || stopProperties.ruta || stopProperties.linea) {
+    const routeName = (stopProperties.route_name || stopProperties.ruta || stopProperties.linea || '').toLowerCase();
+    const matchedRoute = routes.find(r => r.name.toLowerCase().includes(routeName) || routeName.includes(r.name.toLowerCase()));
+    if (matchedRoute) return matchedRoute.id;
+  }
+  
+  // Podemos intentar determinar la ruta por la cercanía geográfica de la parada a la ruta
+  // Pero esto requeriría cálculos espaciales complejos que no implementamos aquí
+  
+  // Si la parada tiene información sobre origen/destino, tratamos de emparejarla con rutas similares
+  if (stopProperties.origen || stopProperties.destino) {
+    const stopLocation = `${stopProperties.origen || ''} ${stopProperties.destino || ''}`.toLowerCase();
+    
+    // Buscar rutas con destinos/orígenes similares
+    for (const route of routes) {
+      if (route.name.toLowerCase().includes(stopLocation) || 
+          (typeof route.geoJSON === 'object' && 
+           route.geoJSON.properties && 
+           `${route.geoJSON.properties.origen || ''} ${route.geoJSON.properties.destino || ''}`.toLowerCase().includes(stopLocation))) {
+        return route.id;
+      }
+    }
+  }
+  
+  // Si todo lo demás falla, asignamos la parada a una ruta de la misma zona (si la parada tiene zona)
+  if (stopProperties.zona || stopProperties.region || stopProperties.area) {
+    const stopZone = determineZone(stopProperties);
+    const zoneRoutes = routes.filter(r => r.zone === stopZone);
+    
+    if (zoneRoutes.length > 0) {
+      return zoneRoutes[Math.floor(Math.random() * zoneRoutes.length)].id;
+    }
+  }
+  
+  // Último recurso: asignar a una ruta aleatoria
   if (routes.length > 0) {
     return routes[Math.floor(Math.random() * routes.length)].id;
   }
