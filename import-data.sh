@@ -1,4 +1,5 @@
 #!/bin/bash
 
-echo "Iniciando script de importación de datos..."
-node_modules/.bin/tsx scripts/import-shapefiles.ts
+echo "Importando datos de KML a la base de datos..."
+npx tsx scripts/import-kml.ts
+echo "Importación completada."
