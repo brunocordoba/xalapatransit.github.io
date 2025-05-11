@@ -102,9 +102,18 @@ export default function MapView({
   // Destacar la ruta seleccionada con optimización
   useEffect(() => {
     if (mapReady && mapInstanceRef.current && routes.length > 0 && Object.keys(routeLayersRef.current).length > 0) {
-      highlightRoute(mapInstanceRef.current, routeLayersRef.current, selectedRouteId);
+      highlightRoute(mapInstanceRef.current, routeLayersRef.current, selectedRouteId, showAllRoutes);
     }
-  }, [mapReady, selectedRouteId]); // Eliminar la dependencia 'routes' para evitar recálculos innecesarios
+  }, [mapReady, selectedRouteId, showAllRoutes]); // Añadimos showAllRoutes como dependencia
+  
+  // Cuando se selecciona una ruta, cambiar automáticamente a modo "solo esta ruta"
+  useEffect(() => {
+    if (selectedRouteId) {
+      setShowAllRoutes(false);
+    } else {
+      setShowAllRoutes(true); // Si no hay ruta seleccionada, mostrar todas
+    }
+  }, [selectedRouteId]);
   
   // Añadir paradas al mapa con optimización
   useEffect(() => {
@@ -157,6 +166,10 @@ export default function MapView({
     }
   };
   
+  const toggleShowAllRoutes = () => {
+    setShowAllRoutes(!showAllRoutes);
+  };
+  
   return (
     <div className="flex-grow relative">
       <div ref={mapContainerRef} className="h-full w-full" />
@@ -197,7 +210,35 @@ export default function MapView({
         >
           <MapPin className="h-6 w-6 text-gray-700" />
         </Button>
+        
+        {/* Este botón solo es visible cuando hay una ruta seleccionada */}
+        {selectedRouteId && (
+          <Button
+            variant="outline"
+            size="icon"
+            className={`p-2 rounded-full shadow-md ${showAllRoutes ? 'bg-blue-100 hover:bg-blue-200' : 'bg-white hover:bg-gray-100'}`}
+            onClick={toggleShowAllRoutes}
+            title={showAllRoutes ? "Mostrar solo la ruta seleccionada" : "Mostrar todas las rutas"}
+          >
+            <Eye className={`h-6 w-6 ${showAllRoutes ? 'text-blue-600' : 'text-gray-700'}`} />
+          </Button>
+        )}
       </div>
+      
+      {/* Indicador de ruta seleccionada */}
+      {selectedRouteId && !showAllRoutes && (
+        <div className="absolute bottom-4 left-4 bg-white px-4 py-2 rounded-lg shadow-md">
+          <p className="text-sm font-medium">
+            Solo mostrando la ruta seleccionada. 
+            <button 
+              onClick={toggleShowAllRoutes}
+              className="ml-2 text-blue-600 underline hover:text-blue-800 focus:outline-none"
+            >
+              Ver todas
+            </button>
+          </p>
+        </div>
+      )}
     </div>
   );
 }
