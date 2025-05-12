@@ -12,6 +12,7 @@ export default function Home() {
   const [showSidebar, setShowSidebar] = useState(true); // Siempre visible por defecto
   const [selectedRouteId, setSelectedRouteId] = useState<number | null>(null);
   const [selectedZone, setSelectedZone] = useState<string>('all');
+  const [showAllRoutes, setShowAllRoutes] = useState(false); // Inicialmente no mostrar rutas
 
   // Fetch all routes
   const { data: routes, isLoading: routesLoading } = useQuery<BusRoute[]>({
@@ -60,6 +61,15 @@ export default function Home() {
     }
   };
 
+  // Función para alternar la visibilidad de todas las rutas
+  const toggleAllRoutes = () => {
+    setShowAllRoutes(!showAllRoutes);
+    // Si estábamos ocultando rutas y ahora queremos mostrarlas, eliminamos cualquier selección
+    if (!showAllRoutes) {
+      setSelectedRouteId(null);
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen overflow-hidden">
       <Header />
@@ -74,6 +84,8 @@ export default function Home() {
           onZoneSelect={handleZoneSelect}
           onRouteSelect={handleRouteSelect}
           onClearSelection={handleClearSelection}
+          onToggleAllRoutes={toggleAllRoutes}
+          showAllRoutes={showAllRoutes}
           isLoading={routesLoading}
         />
         
@@ -85,6 +97,8 @@ export default function Home() {
           isMobile={isMobile}
           onRouteSelect={handleRouteSelect}
           onClearSelection={handleClearSelection}
+          onToggleAllRoutes={toggleAllRoutes}
+          showAllRoutes={showAllRoutes}
         />
         
         {selectedRoute && (

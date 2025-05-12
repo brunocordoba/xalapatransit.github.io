@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { SearchIcon, XCircle, MapPin } from 'lucide-react';
+import { SearchIcon, XCircle, MapPin, Eye, EyeOff } from 'lucide-react';
 import { BusRoute } from '@shared/schema';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,9 +12,11 @@ type SidePanelProps = {
   allRoutes: BusRoute[];
   selectedZone: string;
   selectedRouteId: number | null;
+  showAllRoutes: boolean;
   onZoneSelect: (zone: string) => void;
   onRouteSelect: (routeId: number) => void;
   onClearSelection: () => void;
+  onToggleAllRoutes: () => void;
   isLoading: boolean;
 };
 
@@ -24,9 +26,11 @@ export default function SidePanel({
   allRoutes,
   selectedZone,
   selectedRouteId,
+  showAllRoutes,
   onZoneSelect,
   onRouteSelect,
   onClearSelection,
+  onToggleAllRoutes,
   isLoading 
 }: SidePanelProps) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -58,25 +62,48 @@ export default function SidePanel({
           <SearchIcon className="h-5 w-5 absolute left-3 top-3 text-gray-400" />
         </div>
         
-        {/* Botón para borrar la selección de rutas */}
-        <div className="flex justify-between items-center mt-2">
+        {/* Botones de control */}
+        <div className="flex justify-between items-center mt-3 gap-2">
+          {/* Botón para alternar visualización de todas las rutas */}
           <Button 
-            onClick={onClearSelection}
+            onClick={onToggleAllRoutes}
             variant="outline"
-            className={`px-3 py-1 text-sm gap-1 ${selectedRouteId ? 'clear-selection' : 'text-gray-400'}`}
-            disabled={!selectedRouteId}
+            className={`px-3 py-1 text-sm flex items-center gap-1 ${showAllRoutes ? 'bg-blue-50 text-blue-600 border-blue-200' : 'text-gray-500'}`}
+            title={showAllRoutes ? "Ocultar todas las rutas" : "Mostrar todas las rutas"}
           >
-            <XCircle className="h-4 w-4" />
-            <span>Mostrar todas las rutas</span>
+            {showAllRoutes ? (
+              <>
+                <Eye className="h-4 w-4" />
+                <span className="hidden sm:inline">Todas las rutas</span>
+              </>
+            ) : (
+              <>
+                <EyeOff className="h-4 w-4" />
+                <span className="hidden sm:inline">Sin rutas</span>
+              </>
+            )}
           </Button>
           
+          {/* Botón para limpiar selección */}
+          {selectedRouteId && (
+            <Button 
+              onClick={onClearSelection}
+              variant="outline"
+              className="px-3 py-1 text-sm gap-1 clear-selection"
+            >
+              <XCircle className="h-4 w-4" />
+              <span className="hidden sm:inline">Limpiar selección</span>
+            </Button>
+          )}
+          
+          {/* Botón para ubicación */}
           <Button 
             variant="outline"
-            className="px-3 py-1 text-sm"
+            className="px-3 py-1 text-sm ml-auto"
             onClick={() => {}} 
           >
             <MapPin className="h-4 w-4 mr-1" />
-            Mi ubicación
+            <span className="hidden sm:inline">Mi ubicación</span>
           </Button>
         </div>
       </div>

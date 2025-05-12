@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Plus, Minus, MapPin, Menu, XCircle } from 'lucide-react';
+import { Plus, Minus, MapPin, Menu, XCircle, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BusRoute, BusStop } from '@shared/schema';
 import { initializeMap, addBusStops } from '@/lib/mapUtils';
@@ -15,6 +15,8 @@ type MapViewProps = {
   isMobile: boolean;
   onRouteSelect?: (routeId: number) => void;
   onClearSelection: () => void;
+  onToggleAllRoutes: () => void;
+  showAllRoutes: boolean;
 };
 
 // Función auxiliar para dibujar una sola ruta
@@ -155,7 +157,9 @@ export default function MapView({
   isSidebarVisible,
   isMobile,
   onRouteSelect,
-  onClearSelection
+  onClearSelection,
+  onToggleAllRoutes,
+  showAllRoutes
 }: MapViewProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -194,7 +198,7 @@ export default function MapView({
     };
   }, []);
   
-  // Efecto para manejar la visualización de rutas según la selección
+  // Efecto para manejar la visualización de rutas según la selección y la visibilidad global
   useEffect(() => {
     if (!mapReady || !mapInstanceRef.current) return;
     
@@ -212,8 +216,13 @@ export default function MapView({
     // Resetear las capas almacenadas
     routeLayersRef.current.clear();
     
-    if (selectedRouteId === null) {
-      // Si no hay ruta seleccionada, mostrar todas las rutas
+    // Si no queremos mostrar rutas, terminamos aquí
+    if (!showAllRoutes && selectedRouteId === null) {
+      return;
+    }
+    
+    if (selectedRouteId === null && showAllRoutes) {
+      // Si no hay ruta seleccionada pero queremos mostrar todas, dibujar todas
       routes.forEach(route => {
         const layers = drawSingleRoute(map, route, false, (routeId) => {
           if (onRouteSelect) {
@@ -234,7 +243,7 @@ export default function MapView({
         // Guardar referencia a las capas
         routeLayersRef.current.set(route.id, layers);
       });
-    } else {
+    } else if (selectedRouteId !== null) {
       // Si hay una ruta seleccionada, mostrar solo esa ruta
       const selectedRoute = routes.find(r => r.id === selectedRouteId);
       if (selectedRoute) {
@@ -279,7 +288,7 @@ export default function MapView({
         }
       }
     }
-  }, [mapReady, routes, selectedRouteId, onRouteSelect]);
+  }, [mapReady, routes, selectedRouteId, showAllRoutes, onRouteSelect]);
   
   // Añadir paradas al mapa con optimización
   useEffect(() => {
@@ -375,12 +384,30 @@ export default function MapView({
         >
           <MapPin className="h-6 w-6 text-gray-700" />
         </Button>
+        
+        {/* Botón de ojo para mostrar/ocultar todas las rutas */}
+        <Button
+          variant="outline"
+          size="icon"
+          className={`bg-white p-2 rounded-full shadow-md ${showAllRoutes ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
+          onClick={onToggleAllRoutes}
+          title={showAllRoutes ? "Ocultar todas las rutas" : "Mostrar todas las rutas"}
+        >
+          {showAllRoutes ? (
+            <Eye className="h-6 w-6" />
+          ) : (
+            <EyeOff className="h-6 w-6" />
+          )}
+        </Button>
+        
+        {/* Botón para limpiar selección solo cuando hay una ruta seleccionada */}
         {selectedRouteId && (
           <Button
             variant="outline"
             size="icon"
             className="bg-white p-2 rounded-full shadow-md hover:bg-red-100"
             onClick={onClearSelection}
+            title="Limpiar selección"
           >
             <XCircle className="h-6 w-6 text-red-500" />
           </Button>
