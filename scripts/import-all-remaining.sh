@@ -7,9 +7,9 @@ echo "===== IMPORTACIÓN MASIVA DE RUTAS Y PARADAS ====="
 echo "Este script importará todas las rutas restantes en lotes de 10"
 
 # Rango de rutas a importar (ajustar según sea necesario)
-# Ya tenemos importadas las rutas hasta la 18, continuamos desde la 19
-START=19
-END=150
+# Importamos todas las rutas secuencialmente sin saltar ninguna
+START=1
+END=120
 
 # Importar en lotes de 10 rutas
 BATCH_SIZE=10
