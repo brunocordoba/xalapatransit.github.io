@@ -13,7 +13,7 @@ const execAsync = util.promisify(exec);
 const SHAPEFILES_DIR = './tmp/mapaton-extract/shapefiles-mapton-ciudadano';
 const PROCESSED_DIR = './tmp/processed';
 const BATCH_SIZE = 1; // Procesar solo una ruta a la vez
-const START_INDEX = 16; // Comenzar desde esta ruta (1-indexed)
+const START_INDEX = 2; // Comenzar desde esta ruta (1-indexed)
 
 // Crear directorios de procesamiento si no existen
 if (!fs.existsSync(PROCESSED_DIR)) {
