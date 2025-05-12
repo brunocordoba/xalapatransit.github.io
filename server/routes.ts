@@ -1,13 +1,21 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { getUniqueRouteColor } from "../client/src/lib/constants";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API routes for bus routes
   app.get('/api/routes', async (req, res) => {
     try {
       const routes = await storage.getAllRoutes();
-      res.json(routes);
+      
+      // Asignar colores únicos a cada ruta
+      const routesWithUniqueColors = routes.map(route => ({
+        ...route,
+        color: getUniqueRouteColor(route.id, route.zone)
+      }));
+      
+      res.json(routesWithUniqueColors);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       res.status(500).json({ message });
@@ -27,7 +35,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Route not found' });
       }
       
-      res.json(route);
+      // Asignar color único a la ruta
+      const routeWithUniqueColor = {
+        ...route,
+        color: getUniqueRouteColor(route.id, route.zone)
+      };
+      
+      res.json(routeWithUniqueColor);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       res.status(500).json({ message });
@@ -55,7 +69,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const zone = req.params.zone;
       const routes = await storage.getRoutesByZone(zone);
-      res.json(routes);
+      
+      // Asignar colores únicos a cada ruta
+      const routesWithUniqueColors = routes.map(route => ({
+        ...route,
+        color: getUniqueRouteColor(route.id, route.zone)
+      }));
+      
+      res.json(routesWithUniqueColors);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       res.status(500).json({ message });
