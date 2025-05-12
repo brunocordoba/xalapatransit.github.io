@@ -1,11 +1,14 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import AdmZip from 'adm-zip';
-import { db } from '../server/db';
-import { busRoutes, busStops } from '../shared/schema';
-import { eq } from 'drizzle-orm';
+import * as AdmZip from 'adm-zip';
+import { pool } from '../server/db';
+import { busStops, busRoutes } from '../shared/schema';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { eq, sql } from 'drizzle-orm';
 
-// Buscar todos los archivos zip en una carpeta y sus subcarpetas
+const db = drizzle(pool);
+
+// Función para encontrar todos los archivos .zip en un directorio y sus subdirectorios
 function findZipFiles(dir: string): string[] {
   let results: string[] = [];
   const items = fs.readdirSync(dir);
@@ -15,10 +18,8 @@ function findZipFiles(dir: string): string[] {
     const stat = fs.statSync(itemPath);
     
     if (stat.isDirectory()) {
-      // Si es un directorio, búsqueda recursiva
       results = results.concat(findZipFiles(itemPath));
-    } else if (item.endsWith('.zip')) {
-      // Si es un archivo ZIP, añadirlo a los resultados
+    } else if (item.toLowerCase() === 'stops.zip' || item.toLowerCase() === 'stop.zip') {
       results.push(itemPath);
     }
   }
@@ -26,138 +27,227 @@ function findZipFiles(dir: string): string[] {
   return results;
 }
 
-// Extraer la información de la ruta a partir de la ruta del archivo
+// Función para extraer información de la ruta a partir del nombre del archivo
 function extractRouteInfo(zipPath: string, manualRouteId?: number): { routeId: number; routeName: string; } | null {
-  // Si se proporcionó un ID manual, usarlo
-  if (manualRouteId !== undefined) {
+  try {
+    // Si hay un ID manual, lo usamos directamente
+    if (manualRouteId) {
+      return { routeId: manualRouteId, routeName: `Ruta ${manualRouteId}` };
+    }
+    
+    // Ejemplo de ruta: /tmp/mapaton-extract/shapefiles-mapton-ciudadano/1_circuito/stops.zip
+    const parts = zipPath.split('/');
+    
+    // Buscar la parte que contiene "_circuito"
+    let circuitoPart = '';
+    for (const part of parts) {
+      if (part.includes('_circuito')) {
+        circuitoPart = part;
+        break;
+      }
+    }
+    
+    if (!circuitoPart) {
+      console.warn(`No se pudo extraer información de ruta de: ${zipPath}`);
+      return null;
+    }
+    
+    // Extraer el número de ruta
+    const routeMatch = circuitoPart.match(/^(\d+)_/);
+    if (!routeMatch) {
+      console.warn(`No se pudo extraer número de ruta de: ${circuitoPart}`);
+      return null;
+    }
+    
+    const routeNumber = parseInt(routeMatch[1], 10);
+    
     return {
-      routeId: manualRouteId,
-      routeName: path.basename(zipPath, '.zip')
+      routeId: routeNumber,
+      routeName: `Ruta ${routeNumber}`
     };
+  } catch (error) {
+    console.error(`Error al extraer información de ruta: ${error}`);
+    return null;
   }
-  
-  // Espera un formato como "ruta_123.zip" o "123_nombre_ruta.zip" o similar
-  const fileName = path.basename(zipPath, '.zip');
-  
-  // Intentar extraer ID del nombre de varias formas
-  
-  // 1. Buscar números en el nombre del archivo
-  const matches = fileName.match(/\d+/);
-  if (matches && matches.length > 0) {
-    const routeId = parseInt(matches[0]);
-    if (!isNaN(routeId)) {
-      return {
-        routeId,
-        routeName: fileName
-      };
-    }
-  }
-  
-  // 2. Buscar patrones específicos como "ruta_X" o "route_X"
-  const routeMatches = fileName.match(/ruta[_\s-]?(\d+)/i) || fileName.match(/route[_\s-]?(\d+)/i);
-  if (routeMatches && routeMatches.length > 1) {
-    const routeId = parseInt(routeMatches[1]);
-    if (!isNaN(routeId)) {
-      return {
-        routeId,
-        routeName: fileName
-      };
-    }
-  }
-  
-  console.warn(`No se pudo extraer ID de ruta del archivo: ${zipPath}`);
-  return null;
 }
 
-// Procesar todas las paradas dentro de un archivo ZIP
+// Función para procesar un archivo stops.zip y añadir las paradas a la base de datos
 async function processStopsFromZip(zipPath: string, manualRouteId?: number): Promise<boolean> {
   try {
-    // Extraer información de la ruta del nombre del archivo
+    console.log(`Procesando paradas desde: ${zipPath}`);
+    
+    // Extraer información de la ruta
     const routeInfo = extractRouteInfo(zipPath, manualRouteId);
     if (!routeInfo) {
+      console.warn(`No se pudo extraer información de ruta para: ${zipPath}`);
       return false;
     }
     
-    console.log(`Procesando paradas para la ruta ID: ${routeInfo.routeId} (${routeInfo.routeName})`);
+    console.log(`Información de ruta extraída: ID ${routeInfo.routeId}, Nombre: ${routeInfo.routeName}`);
     
-    // Verificar si la ruta existe en la base de datos
-    const [existingRoute] = await db.select().from(busRoutes).where(eq(busRoutes.id, routeInfo.routeId));
+    // Buscar el ID de la ruta en la base de datos
+    const routes = await db.select().from(busRoutes).where(eq(busRoutes.id, routeInfo.routeId));
     
-    if (!existingRoute) {
-      console.warn(`La ruta con ID ${routeInfo.routeId} no existe en la base de datos. Omitiendo...`);
+    if (routes.length === 0) {
+      console.warn(`No se encontró la ruta con ID ${routeInfo.routeId} en la base de datos`);
+      
+      // Buscar rutas que contengan el número en su nombre usando SQL directo
+      const alternativeRoutesQuery = await db.execute(
+        sql`SELECT * FROM bus_routes WHERE LOWER(name) LIKE ${'%ruta ' + routeInfo.routeId + '%'}`
+      );
+      
+      // Los resultados de db.execute no tienen length, pero podemos checar rowCount
+      if (alternativeRoutesQuery.rowCount && alternativeRoutesQuery.rowCount > 0) {
+        console.log(`Se encontraron ${alternativeRoutesQuery.rowCount} rutas alternativas por nombre:`);
+        
+        // Las filas están en la propiedad rows
+        alternativeRoutesQuery.rows.forEach(route => {
+          console.log(`- ID: ${route.id}, Nombre: ${route.name}`);
+        });
+        
+        return false;
+      }
+      
       return false;
     }
     
-    // Abrir el archivo ZIP
+    const route = routes[0];
+    console.log(`Ruta encontrada en la base de datos: ID ${route.id}, Nombre: ${route.name}`);
+    
+    // Verificar si ya existen paradas para esta ruta
+    const existingStops = await db.select().from(busStops).where(eq(busStops.routeId, route.id));
+    if (existingStops.length > 0) {
+      console.log(`La ruta ${route.id} (${route.name}) ya tiene ${existingStops.length} paradas, saltando...`);
+      return true;
+    }
+    
+    // Leer y extraer el archivo stops.zip
     const zip = new AdmZip(zipPath);
-    const zipEntries = zip.getEntries();
     
-    // Buscar el archivo de paradas dentro del ZIP (normalmente termina con "_stops.json")
-    const stopsEntry = zipEntries.find(entry => 
-      entry.name.endsWith('_stops.json') || entry.name.includes('stops')
-    );
-    
-    if (!stopsEntry) {
-      console.warn(`No se encontró archivo de paradas en: ${zipPath}`);
+    // Buscar el archivo .shp dentro del zip
+    const shpEntry = zip.getEntries().find(entry => entry.name.toLowerCase().endsWith('.shp'));
+    if (!shpEntry) {
+      console.warn(`No se encontró archivo .shp en ${zipPath}`);
       return false;
     }
     
-    // Leer y parsear el contenido del archivo de paradas
-    const stopsContent = stopsEntry.getData().toString('utf8');
-    const stopsData = JSON.parse(stopsContent);
+    // Extraer todos los archivos a un directorio temporal
+    const tempDir = path.join('tmp', `stops_${route.id}_${Date.now()}`);
+    fs.mkdirSync(tempDir, { recursive: true });
     
-    // Verificar que el formato sea el esperado (GeoJSON)
-    if (!stopsData.type || stopsData.type !== 'FeatureCollection' || !stopsData.features) {
-      console.warn(`Formato de archivo de paradas no válido en: ${zipPath}`);
+    zip.extractAllTo(tempDir, true);
+    
+    // Encontrar el archivo .shp extraído
+    const shpFiles = fs.readdirSync(tempDir).filter(file => file.toLowerCase().endsWith('.shp'));
+    if (shpFiles.length === 0) {
+      console.warn(`No se encontraron archivos .shp extraídos en ${tempDir}`);
       return false;
     }
     
-    // Eliminar paradas existentes para esta ruta (si hay)
-    await db.delete(busStops).where(eq(busStops.routeId, routeInfo.routeId));
+    const shpFile = path.join(tempDir, shpFiles[0]);
     
-    console.log(`Encontradas ${stopsData.features.length} paradas para la ruta ${routeInfo.routeId}`);
+    // Crear un directorio para el archivo GeoJSON
+    const geojsonFile = path.join(tempDir, 'stops.geojson');
     
-    // Procesar cada parada y guardarla en la base de datos
-    let stopsCount = 0;
-    for (const feature of stopsData.features) {
-      if (feature.type !== 'Feature' || !feature.geometry || feature.geometry.type !== 'Point') {
-        console.warn(`Ignorando parada con formato incorrecto en ruta ${routeInfo.routeId}`);
+    // Convertir el archivo shapefile a GeoJSON usando ogr2ogr
+    await new Promise<void>((resolve, reject) => {
+      const { spawn } = require('child_process');
+      
+      console.log(`Convirtiendo shapefile a GeoJSON: ${shpFile} -> ${geojsonFile}`);
+      
+      const process = spawn('ogr2ogr', [
+        '-f', 'GeoJSON',
+        geojsonFile,
+        shpFile
+      ]);
+      
+      process.on('close', (code: number) => {
+        if (code !== 0) {
+          console.error(`ogr2ogr terminó con código ${code}`);
+          reject(new Error(`ogr2ogr falló con código ${code}`));
+        } else {
+          console.log('Conversión completada con éxito');
+          resolve();
+        }
+      });
+    });
+    
+    // Leer el archivo GeoJSON
+    if (!fs.existsSync(geojsonFile)) {
+      console.warn(`El archivo GeoJSON no se creó correctamente: ${geojsonFile}`);
+      return false;
+    }
+    
+    const geojsonContent = fs.readFileSync(geojsonFile, 'utf8');
+    const geojson = JSON.parse(geojsonContent);
+    
+    if (!geojson.features || !Array.isArray(geojson.features)) {
+      console.warn(`El archivo GeoJSON no contiene features: ${geojsonFile}`);
+      return false;
+    }
+    
+    console.log(`Se encontraron ${geojson.features.length} paradas en el GeoJSON`);
+    
+    // Procesar cada parada y añadirla a la base de datos
+    let stopsAdded = 0;
+    
+    for (let i = 0; i < geojson.features.length; i++) {
+      const feature = geojson.features[i];
+      
+      if (!feature.geometry || !feature.geometry.coordinates) {
+        console.warn(`Feature sin coordenadas en el índice ${i}`);
         continue;
       }
       
       const coordinates = feature.geometry.coordinates;
-      const properties = feature.properties || {};
-      const isTerminal = stopsCount === 0 || stopsCount === stopsData.features.length - 1;
-      const terminalType = isTerminal ? (stopsCount === 0 ? 'start' : 'end') : '';
       
+      // Determinar el nombre de la parada
+      let stopName = `Parada ${route.id}-${i+1}`;
+      
+      // Si hay propiedad name o NAME en las propiedades, usarla
+      if (feature.properties) {
+        if (feature.properties.name) {
+          stopName = feature.properties.name;
+        } else if (feature.properties.NAME) {
+          stopName = feature.properties.NAME;
+        } else if (feature.properties.Name) {
+          stopName = feature.properties.Name;
+        }
+      }
+      
+      // Determinar si es terminal
+      const isTerminal = i === 0 || i === geojson.features.length - 1;
+      const terminalType = i === 0 ? 'inicio' : (i === geojson.features.length - 1 ? 'fin' : '');
+      
+      // Añadir la parada a la base de datos
       try {
-        // Insertar la parada en la base de datos
         await db.insert(busStops).values({
-          routeId: routeInfo.routeId,
-          name: `Parada ${stopsCount + 1}${isTerminal ? ' (Terminal)' : ''}`,
+          routeId: route.id,
+          name: stopName,
           latitude: coordinates[1].toString(),
           longitude: coordinates[0].toString(),
-          isTerminal: isTerminal,
-          terminalType: terminalType
+          isTerminal,
+          terminalType
         });
         
-        stopsCount++;
-      } catch (err) {
-        console.error(`Error al guardar parada para ruta ${routeInfo.routeId}:`, err);
+        stopsAdded++;
+      } catch (error) {
+        console.error(`Error al insertar parada ${stopName}: ${error}`);
       }
     }
     
-    // Actualizar el contador de paradas en la ruta
-    await db.update(busRoutes)
-      .set({
-        stopsCount: stopsCount
-      })
-      .where(eq(busRoutes.id, routeInfo.routeId));
+    console.log(`Se añadieron ${stopsAdded} paradas para la ruta ${route.id} (${route.name})`);
     
-    console.log(`Se guardaron ${stopsCount} paradas para la ruta ${routeInfo.routeId}`);
+    // Limpiar archivos temporales
+    try {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    } catch (error) {
+      console.warn(`No se pudieron eliminar los archivos temporales: ${error}`);
+    }
+    
     return true;
   } catch (error) {
-    console.error(`Error al procesar archivo de paradas ${zipPath}:`, error);
+    console.error(`Error al procesar paradas desde ${zipPath}: ${error}`);
     return false;
   }
 }
@@ -165,97 +255,80 @@ async function processStopsFromZip(zipPath: string, manualRouteId?: number): Pro
 // Función principal para importar todas las paradas
 async function importAllStopsFromZips(baseDir: string) {
   try {
-    console.log(`Buscando archivos ZIP en: ${baseDir}`);
-    const zipFiles = findZipFiles(baseDir);
-    console.log(`Se encontraron ${zipFiles.length} archivos ZIP`);
+    console.log(`Buscando archivos stops.zip en ${baseDir}...`);
     
-    // Estadísticas
-    let successCount = 0;
-    let errorCount = 0;
+    // Encontrar todos los archivos stops.zip
+    const stopZipFiles = findZipFiles(baseDir);
     
-    // Procesar cada archivo ZIP
-    for (let i = 0; i < zipFiles.length; i++) {
-      const zipPath = zipFiles[i];
-      console.log(`[${i+1}/${zipFiles.length}] Procesando: ${zipPath}`);
+    console.log(`Se encontraron ${stopZipFiles.length} archivos stops.zip`);
+    
+    let processed = 0;
+    let successful = 0;
+    
+    // Procesar cada archivo
+    for (const zipFile of stopZipFiles) {
+      console.log(`\nProcesando ${processed + 1}/${stopZipFiles.length}: ${zipFile}`);
       
-      const success = await processStopsFromZip(zipPath);
+      const success = await processStopsFromZip(zipFile);
+      
+      processed++;
       if (success) {
-        successCount++;
-      } else {
-        errorCount++;
+        successful++;
       }
       
-      // Pequeña pausa para evitar sobrecargar la base de datos
-      if (i < zipFiles.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
+      // Pequeña pausa para no sobrecargar la base de datos
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
     
-    console.log('\n===== RESUMEN =====');
-    console.log(`Total de archivos ZIP: ${zipFiles.length}`);
-    console.log(`Procesados con éxito: ${successCount}`);
-    console.log(`Errores: ${errorCount}`);
-    
+    console.log(`\nProceso completado: ${successful}/${processed} archivos procesados con éxito`);
   } catch (error) {
-    console.error('Error en el proceso de importación:', error);
+    console.error(`Error en importAllStopsFromZips: ${error}`);
   }
 }
 
-// Función para procesar un directorio o archivo ZIP específico
+// Función para importar paradas desde un archivo específico
 async function importStopsFromSpecific(pathToProcess: string, manualRouteId?: number) {
   try {
-    const stats = fs.statSync(pathToProcess);
+    console.log(`Procesando archivo específico: ${pathToProcess}`);
     
-    if (stats.isDirectory()) {
-      // Si es un directorio, importar todos los ZIP dentro
-      await importAllStopsFromZips(pathToProcess);
-    } else if (stats.isFile() && pathToProcess.endsWith('.zip')) {
-      // Si es un archivo ZIP individual, procesarlo
-      const success = await processStopsFromZip(pathToProcess, manualRouteId);
-      console.log(`Procesamiento ${success ? 'exitoso' : 'fallido'} para: ${pathToProcess}`);
+    const success = await processStopsFromZip(pathToProcess, manualRouteId);
+    
+    if (success) {
+      console.log('Importación completada con éxito');
     } else {
-      console.error(`La ruta especificada no es un directorio o archivo ZIP válido: ${pathToProcess}`);
+      console.log('Importación fallida');
     }
   } catch (error) {
-    console.error('Error al procesar la ruta especificada:', error);
+    console.error(`Error en importStopsFromSpecific: ${error}`);
   }
 }
 
-// Ejecutar la función principal
+// Función principal
 async function main() {
   try {
-    // Obtener argumentos de línea de comandos
+    // Comprobar los argumentos de la línea de comandos
     const args = process.argv.slice(2);
     
     if (args.length === 0) {
-      console.error('Debe especificar la ruta base como argumento. Ejemplo:');
-      console.error('npx tsx import-stops-from-zip.ts ../data/mapaton');
-      console.error('npx tsx import-stops-from-zip.ts ruta.zip --route-id 345');
+      // Sin argumentos, importar todas las paradas
+      await importAllStopsFromZips('tmp/mapaton-extract');
+    } else if (args.length === 1) {
+      // Un argumento, importar desde una ruta específica
+      await importStopsFromSpecific(args[0]);
+    } else if (args.length === 2) {
+      // Dos argumentos, importar desde una ruta específica con ID manual
+      await importStopsFromSpecific(args[0], parseInt(args[1], 10));
+    } else {
+      console.error('Uso: npm run stops [path_to_stops_zip] [manual_route_id]');
       process.exit(1);
     }
     
-    const pathToProcess = args[0];
-    let manualRouteId: number | undefined;
-    
-    // Buscar si se especificó un ID de ruta manual
-    const routeIdIndex = args.indexOf('--route-id');
-    if (routeIdIndex !== -1 && args.length > routeIdIndex + 1) {
-      manualRouteId = parseInt(args[routeIdIndex + 1]);
-      if (isNaN(manualRouteId)) {
-        console.error('El ID de ruta debe ser un número válido');
-        process.exit(1);
-      }
-      console.log(`Usando ID de ruta manual: ${manualRouteId}`);
-    }
-    
-    await importStopsFromSpecific(pathToProcess, manualRouteId);
-    
-    console.log('Proceso completado con éxito');
     process.exit(0);
   } catch (error) {
-    console.error('Error fatal:', error);
+    console.error(`Error en main: ${error}`);
     process.exit(1);
   }
 }
 
+// Ejecutar el programa
 main();
