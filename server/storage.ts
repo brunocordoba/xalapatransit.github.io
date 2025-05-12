@@ -11,6 +11,7 @@ export interface IStorage {
   getStopsByRouteId(routeId: number): Promise<BusStop[]>;
   createRoute(route: InsertBusRoute): Promise<BusRoute>;
   createStop(stop: InsertBusStop): Promise<BusStop>;
+  updateRoute(id: number, updates: Partial<BusRoute>): Promise<BusRoute | undefined>;
   initializeData(): Promise<void>;
 }
 
@@ -60,6 +61,22 @@ export class DatabaseStorage implements IStorage {
   async createStop(insertStop: InsertBusStop): Promise<BusStop> {
     const result = await db.insert(busStops).values(insertStop).returning();
     return result[0];
+  }
+  
+  async updateRoute(id: number, updates: Partial<BusRoute>): Promise<BusRoute | undefined> {
+    // Primero verificamos si la ruta existe
+    const existingRoute = await this.getRoute(id);
+    if (!existingRoute) {
+      return undefined;
+    }
+    
+    // Realizamos la actualización
+    const result = await db.update(busRoutes)
+      .set(updates)
+      .where(eq(busRoutes.id, id))
+      .returning();
+    
+    return result.length > 0 ? result[0] : undefined;
   }
 
   async initializeData(): Promise<void> {

@@ -63,6 +63,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message });
     }
   });
+  
+  // API route for updating a route (for manual corrections)
+  app.patch('/api/routes/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: 'Invalid route ID' });
+      }
+      
+      // Get the updates from the request body
+      const updates = req.body;
+      
+      // Update the route
+      const updatedRoute = await storage.updateRoute(id, updates);
+      if (!updatedRoute) {
+        return res.status(404).json({ message: 'Route not found' });
+      }
+      
+      // Assign unique color
+      const routeWithUniqueColor = {
+        ...updatedRoute,
+        color: getUniqueRouteColor(updatedRoute.id, updatedRoute.zone)
+      };
+      
+      res.json(routeWithUniqueColor);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ message });
+    }
+  });
 
   // API route for getting routes by zone
   app.get('/api/zones/:zone/routes', async (req, res) => {
