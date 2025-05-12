@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="robots" content="index,follow" />
+        <meta name="author" content="Mapatón Xalapa | Codeando Xalapa" />
+        <meta name="copyright" content="Creative Commons" />
+      
+        <!-- Google -->
+        <meta name="title" content="Mapatón Xalapa | Codeando Xalapa" />
+        <meta name="description" content="Mediante el uso de tecnología libre se podrán tener almacenadas en un repositorio de datos todas las rutas de autobuses de la ciudad de Xalapa." />
+        <meta name="keywords" content="mapatón,datos abierto,xalapa" />
+
+        <!-- Apple -->
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+        <!-- FB / 560x560 -->
+        <meta property="og:title" content="Mapatón Xalapa | Codeando Xalapa" />
+        <meta property="og:type" content="article" />
+        <meta property="og:image" content="https://mapaton.org/mapaton-ciudadano-xalapa/images/share_fb.png" />
+        <meta property="og:url" content="http://mapaton.org" />
+        <meta property="og:description" content="Mapatón Xalapa | Codeando Xalapa" />
+        <meta property="fb:admins" content="100000759628852" />
+
+        <!-- Twitter / 560x300 -->
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:site" content="@twitter" />
+        <meta name="twitter:creator" content="@twitter" />
+        <meta name="twitter:image" content="https://mapaton.org/mapaton-ciudadano-xalapa/images/share_fb.png" />
+        <meta name="twitter:url" content="http://mapaton.org" />
+        <meta name="twitter:title" content="Mapatón Xalapa | Codeando Xalapa" />
+        <meta name="twitter:description" content="Mediante el uso de tecnología libre se podrán tener almacenadas en un repositorio de datos todas las rutas de autobuses de la ciudad de Xalapa." />
+		
+    	<title>Mapatón Ciudadano</title>
+    	<link rel="shortcut icon" type="image/png" href="libs/images/favicon.png">
+    	<link rel="stylesheet" href="libs/bootstrap/css/bootstrap.css">
+    	<link rel="stylesheet" href="libs/css/style.app.css">
+    	<link rel="stylesheet" href="libs/css/style.map.css">
+    	<link rel="stylesheet" href="libs/css/leaflet.draw.css">
+    	<link rel="stylesheet" href="libs/css/style.avicomu.css">
+        
+	</head>
+  	<body>
+    	<div class="bar-blue"></div>
+        <!-- Loading -->
+      	<div class="layer-map"></div>
+    	<div class="container-fluid">
+    	<!-- nav -->
+		<div class="container">
+			<nav class="navbar navbar-expand-md navbar-dark">
+				<div class="col-xs-12">
+					<div class="col-md-2 col-lg-2">
+						<a class="navbar-brand" href="https://mapaton.org">
+							<img src="libs/images/logo.png" class="img img-logo" alt="Mapaton Ciudadano" />
+						</a>
+					</div>
+					<div class="col-md-1 col-lg-1 no-show-celular"></div>
+					<div class="col-md-3 col-lg-2 border-left no-show-celular">
+						<span class="subtitle"></span>
+					</div>
+					<div class="col-md-5 col-lg-6 no-show-celular">
+						<h1>Visualizador de mapas</h1>
+					</div>
+					<div class="col-md-1 col-lg-1 pull-right no-show-celular">
+						<button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+							<span class="navbar-toggler-icon"></span>
+						</button>
+					</div>
+				</div>
+			</nav>
+			<div class="collapse" id="navbarCollapse">
+				<div class="container">
+					<h2 class="titulo-interno"><span>Mapeo de rutas</span><br> para futuras ciudades sostenibles</h2>
+					<ul class="navbar-nav mr-auto menu-dentro">
+						<li class="nav-item">
+							<a id="conoce" class="nav-link expand" href="https://mapaton.org/#conocenos">
+								<img class="logo-conocenos" src="../libs/images/conocenos.png" />
+								<span class="tooltip-custom">Conócenos</span>
+							</a>
+
+						</li>
+						<li class="nav-item">
+							<a id="ciudad" class="nav-link expand" href="https://mapaton.org/#ciudades">
+								<img class="logo-pointer" src="../libs/images/pointer.png" />
+								<span class="tooltip-custom-city">Ciudades</span>
+							</a>
+						</li>
+						<li class="nav-item">
+							<a id="dat" class="nav-link expand" href="https://mapaton.org/#kit">
+								<img class="logo-datos" src="../libs/images/left.png" />
+								<span class="tooltip-custom-dat">Kit de Mapeo</span>
+							</a>
+						</li>
+						 <li class="nav-item">
+							<a id="kitm" class="nav-link expand" href="https://mapaton.org/#medios">
+								<img class="logo-datos" src="../libs/images/datos.png" />
+								<span class="tooltip-custom-kitm">Medios</span>
+							 </a>
+						</li>
+						 <li class="nav-item">
+							<a id="escribe" class="nav-link expand" href="https://mapaton.org/#escribenos">
+								<img class="logo-datos" src="../libs/images/arroba.png" />
+								<span class="tooltip-custom-escribe">Escríbenos</span>
+							 </a>
+						</li>
+					 </ul>
+				</div>
+			</div>
+		</div>
+        <!-- end nav --> 
+        </div>
+        <div class="container-mapa">
+        <!-- MAP -->
+        	<div id="map"></div>
+        <!-- -->
+        	<div class="menu-interior">
+   				<div class="container-submenu">
+                	<h2>ÚLTIMOS MAPAS</h2>
+                    <ul>
+                        <li>
+                            <h3>Mapatón Xalapa 2016</h3>
+                            <i class="fas fa-map-marker-alt"></i> <span class="subt">Xalapa Veracruz, México.</span>
+                            <br>
+                            <p>RUTAS DE TRANSPORTE PÚBLICO URBANO OBTENIDAS (152).</p>
+                            <button type="button" class="ver-rutas" id="verutas">VER RUTAS</button>
+                        </li>
+                    </ul>
+                </div><!-- end container-submenu-->
+                <div class="container-submenu-interno">
+                	<h2><button type="button" id="rerutas"><i class="fas fa-angle-left"></i><i class="fas fa-angle-left"></i></button></h2>
+                    <ul>
+                        <li>
+                            <h3>Mapatón Xalapa 2016</h3>
+                            <i class="fas fa-map-marker-alt"></i> <span class="subt">Xalapa Veracruz, México.</span>
+                        	<hr>
+                             <div class="scroll-div">
+                             	<div class="container-listado-rutas">
+                					<ul>
+                    					<li>
+                                        <a class="item-route colorDesactivo" id="13905947" data-src="001" data-tipo="circuito" data-km="37" href="#"><strong>Ruta 1:</strong> Avila Camacho - Zona UV - Xalapa 2mil - Lomas Verdes - IPE - Bugambilias</a>
+                                        <img class="img-full" src="data/001/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 37 kilometros.</span>
+                        				</li>
+                                        <li><a class="item-route colorDesactivo" id="13939263" data-src="002" data-tipo="circuito" data-km="25" href="#"><strong>Ruta 2:</strong> Av. Xalapa - Ignacio de la Llave - Zona UV - Rebsamen - Xalapa 2mil - Arco Sur - Lázaro Cárdenas</a>
+                                        <img class="img-full" src="data/002/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 25 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14010754" data-src="003" data-tipo="ida" data-km="6.26" href="#"><strong>Ruta 3:</strong> Av. Xalapa(economía) - 20 noviembre - Lazaro Cardenas | <strong>IDA</strong></a>
+                                        <img class="img-full" src="data/003/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 6.26 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14010987" data-src="003" data-tipo="vuelta" data-km="4.64" href="#"><strong>Ruta 4:</strong> Lázaro Cardenas -20 de noviembre. - av.xalapa (economía) | <strong>VUELTA</strong></a>
+                                        <img class="img-full" src="data/003/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 6.26 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13936318" data-src="004" data-tipo="ruta" data-km="5.5" href="#"><strong>Ruta 5:</strong> Campo de Tiro - Colonia Hernández Castillo - Sayago</a>
+                                        <img class="img-full" src="data/004/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 5.5 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13932747" data-src="005" data-tipo="ruta" data-km="11" href="#"><strong>Ruta 6:</strong> Miradores - Trancas - Tesoreria - Banderilla</a>
+                                        <img class="img-full" src="data/005/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 11 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14014505" data-src="006" data-tipo="ruta" data-km="12" href="#"><strong>Ruta 7:</strong> Mercado - Pipila - Jardines - Carolino Anaya</a>
+                                        <img class="img-full" src="data/006/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 12 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14015097" data-src="007" data-tipo="ruta" data-km="16" href="#"><strong>Ruta 8:</strong> Buena Vista- Sauces- Berros- Caxa- Trancas- Pradera- Central Abastos</a>
+                                        <img class="img-full" src="data/007/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 16 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13922705" data-src="008" data-tipo="ida" data-km="12" href="#"><strong>Ruta 9:</strong> Reserva Territorial- 20 de Noviembre- Economía- Avenida Xalapa</a>
+                                        <img class="img-full" src="data/008/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 12 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13923205" data-src="008" data-tipo="vuelta" data-km="12" href="#"><strong>Ruta 10:</strong> Escuela Normal Veracruzana -Avenida Xalapa, Economía, Clavijero, Reserva Territorial</a>
+                                        <img class="img-full" src="data/008/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 12 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13979049" data-src="009" data-tipo="ida" data-km="11" href="#"><strong>Ruta 11:</strong> Sayago- Calle Nuevo León- Villa Hermosa- Sumidero</a>
+                                        <img class="img-full" src="data/009/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 11 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13979553" data-src="009" data-tipo="vuelta" data-km="11" href="#"><strong>Ruta 12:</strong> Sumidero- calle Nuevo León - Villa Hermosa - Clavijero</a>
+                                        <img class="img-full" src="data/009/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 11 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14013541" data-src="010" data-tipo="ida" data-km="10" href="#"><strong>Ruta 13:</strong> Sayago(inicio) - Av. Xalapa - Hernández Castillo - Campo de Tiro</a>
+                                        <img class="img-full" src="data/010/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 10 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14014020" data-src="010" data-tipo="vuelta" data-km="10" href="#"><strong>Ruta 14:</strong> Colonia Vicente Guerrero (inicio) - Campo de Tiro - Col. Revolución - Av. xalapa - Centro</a>
+                                        <img class="img-full" src="data/010/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 10 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13984296" data-src="011" data-tipo="circuito" data-km="27" href="#"><strong>Ruta 15:</strong> Inicia Chedrahui Caram segundo punto Ejidal y termina en Chedrahui Caram</a>
+                                        <img class="img-full" src="data/011/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 27 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13976848" data-src="012" data-tipo="ida" data-km="5.4" href="#"><strong>Ruta 16:</strong>Inicio en Mártires 28 de Agosto - USISVER - Miguel Alemán</a>
+                                        <img class="img-full" src="data/012/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 5.4 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13977035" data-src="012" data-tipo="vuelta" data-km="4.94" href="#"><strong>Ruta 17:</strong> Mártires 28 de Agosto Lazaro Cardenas</a>
+                                        <img class="img-full" src="data/012/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 4.94 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13979918" data-src="013" data-tipo="circuito" data-km="10" href="#"><strong>Ruta 18:</strong> Ruta Macuiltepetl - Miguel Alemán - Cerro de Macuiltepetl - Centro</a>
+                                        <img class="img-full" src="data/013/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 10 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13977740" data-src="014" data-tipo="ruta" data-km="9.84" href="#"><strong>Ruta 19:</strong> Calvario - Panteón - Técnica 72</a>
+                                        <img class="img-full" src="data/014/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 9.84 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13978562" data-src="015" data-tipo="circuito" data-km="26" href="#"><strong>Ruta 20:</strong> Murillo Vidal - Plaza Américas - Torre Ánimas - Sev - Coapexpan - Terminal</a>
+                                        <img class="img-full" src="data/015/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 26 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14009162" data-src="016" data-tipo="circuito" data-km="18" href="#"><strong>Ruta 21:</strong> El Olmo - Torre Animas - Murillo Vidal - Coapexpan</a>
+                                        <img class="img-full" src="data/016/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 18 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13939744" data-src="017" data-tipo="ida" data-km="14" href="#"><strong>Ruta 22:</strong> El Haya - Zona UV - Bugambilias</a>
+                                        <img class="img-full" src="data/017/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 14 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13941310" data-src="017" data-tipo="vuelta" data-km="14" href="#"><strong>Ruta 23:</strong> Bugambilias - Zona UV - El Haya</a>
+                                        <img class="img-full" src="data/017/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 14 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13940808" data-src="018" data-tipo="ida" data-km="13" href="#"><strong>Ruta 24:</strong> El Haya - Centro - Ojo de Agua</a>
+                                        <img class="img-full" src="data/018/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 13 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13940332" data-src="018" data-tipo="vuelta" data-km="15" href="#"><strong>Ruta 25:</strong> Ojo de Agua - Zona UV - El Haya</a>
+                                        <img class="img-full" src="data/018/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 15 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13944444" data-src="019" data-tipo="ida" data-km="16" href="#"><strong>Ruta 26:</strong> Col. Veracruz - 20 de Noviembre - Central de Abastos</a>
+                                        <img class="img-full" src="data/019/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 16 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13945094" data-src="019" data-tipo="vuelta" data-km="16" href="#"><strong>Ruta 27:</strong> Central de Abastos - 20 de Noviembre - Col. Veracruz</a>
+                                        <img class="img-full" src="data/019/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 16 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13982697" data-src="020" data-tipo="ida" data-km="18" href="#"><strong>Ruta 28:</strong> Artículo 3ro - Avila Camacho</a>
+                                        <img class="img-full" src="data/020/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 18 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13982017" data-src="020" data-tipo="vuelta" data-km="17" href="#"><strong>Ruta 29:</strong> Haciendas - Centro - Art 3ro</a>
+                                        <img class="img-full" src="data/020/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 17 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14070810" data-src="021" data-tipo="ida" data-km="17" href="#"><strong>Ruta 30:</strong> San Andrés Tlalnehuayocan - Luz del Barrio - Central de Abastos</a>
+                                        <img class="img-full" src="data/021/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 17 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14072636" data-src="021" data-tipo="vuelta" data-km="6.54" href="#"><strong>Ruta 31:</strong> Marina Nacional - Pipila - Santa Rosa</a>
+                                        <img class="img-full" src="data/021/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 6.54 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14071419" data-src="022" data-tipo="ruta" data-km="24" href="#"><strong>Ruta 32:</strong> San Andrés Tlalnehuayocan - Luz del Barrio - Central de Abastos</a>
+                                        <img class="img-full" src="data/022/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 24 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14071925" data-src="023" data-tipo="ida" data-km="16" href="#"><strong>Ruta 33:</strong> San Andrés Tlalnehuayocan - Luz del Barrio - Clavijero - Zipor</a>
+                                        <img class="img-full" src="data/023/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 16 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14072418" data-src="023" data-tipo="vuelta" data-km="18" href="#"><strong>Ruta 34:</strong> Las Fuentes - Mercado - San Andrés Tlalnehuayocan</a>
+                                        <img class="img-full" src="data/023/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 18 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14086030" data-src="024" data-tipo="ida" data-km="20" href="#"><strong>Ruta 35:</strong> La haciendita - Caxa - Central de Abastos</a>
+                                        <img class="img-full" src="data/024/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 20 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14086525" data-src="024" data-tipo="vuelta" data-km="15" href="#"><strong>Ruta 36:</strong> Central de Abastos - Caxa - La Haciendita</a>
+                                        <img class="img-full" src="data/024/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 15 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14087144" data-src="025" data-tipo="ida" data-km="15" href="#"><strong>Ruta 37:</strong> Experimental - Plaza Cristal - Central de Abastos</a>
+                                        <img class="img-full" src="data/025/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 15 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14087710" data-src="025" data-tipo="vuelta" data-km="19" href="#"><strong>Ruta 38:</strong> Central de Abastos - Plaza Cristal - Experimental</a>
+                                        <img class="img-full" src="data/025/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 19 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14088337" data-src="026" data-tipo="ida" data-km="20" href="#"><strong>Ruta 39:</strong> La haciendita - Caxa - Central de Abastos</a>
+                                        <img class="img-full" src="data/026/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 20 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14088832" data-src="026" data-tipo="vuelta" data-km="15" href="#"><strong>Ruta 40:</strong> Central de Abastos - Caxa - La Haciendita</a>
+                                        <img class="img-full" src="data/026/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 15 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14089451" data-src="027" data-tipo="ida" data-km="22" href="#"><strong>Ruta 41:</strong> Experimental - Cristal - Central de Abastos</a>
+                                        <img class="img-full" src="data/027/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 22 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14090017" data-src="027" data-tipo="vuelta" data-km="19" href="#"><strong>Ruta 42:</strong> Central de Abastos - Plaza Cristal - Experimental</a>
+                                        <img class="img-full" src="data/027/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 19 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14132171" data-src="028" data-tipo="ida" data-km="11" href="#"><strong>Ruta 43:</strong> Homex - Vasconcelos - Av. Xalapa - Centro</a>
+                                        <img class="img-full" src="data/028/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 11 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14132601" data-src="028" data-tipo="vuelta" data-km="13" href="#"><strong>Ruta 44:</strong> Centro - Av. Xalapa - Vasconcelos - Homex</a>
+                                        <img class="img-full" src="data/028/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 13 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14132942" data-src="029" data-tipo="ida" data-km="7.86" href="#"><strong>Ruta 45:</strong> Col México - Lucas Martín - Av. Xalapa-Centro</a>
+                                        <img class="img-full" src="data/029/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 7.86 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14133255" data-src="029" data-tipo="vuelta" data-km="7.62" href="#"><strong>Ruta 46:</strong> Centro - Av. Xalapa - Lucas Martín - Col. México</a>
+                                        <img class="img-full" src="data/029/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 7.62 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14558320" data-src="030" data-tipo="ida" data-km="9.53" href="#"><strong>Ruta 47:</strong> Campo de Tiro - Revolución - Clavijero</a>
+                                        <img class="img-full" src="data/030/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 9.53 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14557907" data-src="030" data-tipo="vuelta" data-km="10" href="#"><strong>Ruta 48:</strong> Clavijero - Revolución - Campo de Tiro</a>
+                                        <img class="img-full" src="data/030/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 10 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14558991" data-src="031" data-tipo="ida" data-km="6.86" href="#"><strong>Ruta 49:</strong> El Moral - Revolución - Clavijero</a>
+                                        <img class="img-full" src="data/031/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 6.86 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14558679" data-src="031" data-tipo="vuelta" data-km="7.79" href="#"><strong>Ruta 50:</strong> Clavijero - Revolución - El Moral</a>
+                                        <img class="img-full" src="data/031/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 7.79 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14571388" data-src="032" data-tipo="ida" data-km="16" href="#"><strong>Ruta 51:</strong> Col Higueras - Lázaro Cárdenas - Centro - Zona UV</a>
+                                        <img class="img-full" src="data/032/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 16 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14570728" data-src="032" data-tipo="vuelta" data-km="9.68" href="#"><strong>Ruta 52:</strong> Zona UV - Centro - Lázaro Cárdenas - Higueras</a>
+                                        <img class="img-full" src="data/032/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 9.68 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13938399" data-src="033" data-tipo="circuito" data-km="27" href="#"><strong>Ruta 53:</strong> Sefiplan - Lazaro Cardenas - Cto.Presidentes - Ruiz Cortinez</a>
+                                        <img class="img-full" src="data/033/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 27 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13947552" data-src="034" data-tipo="ida" data-km="9.45" href="#"><strong>Ruta 54:</strong> Reforma - Mercado - Sumidero</a>
+                                        <img class="img-full" src="data/034/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 9.45 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13948008" data-src="034" data-tipo="vuelta" data-km="7.98" href="#"><strong>Ruta 55:</strong> Sumidero - Mercado - Reforma</a>
+                                        <img class="img-full" src="data/034/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 7.98 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13972544" data-src="035" data-tipo="ida" data-km="8.4" href="#"><strong>Ruta 56:</strong> Campo de Tiro - Av. Xalapa - Av. México - Clavijero</a>
+                                        <img class="img-full" src="data/035/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 8.4 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13980941" data-src="035" data-tipo="vuelta" data-km="8.85" href="#"><strong>Ruta 57:</strong> Clavijero - Av. Xalapa - Av. México - Campo de tiro</a>
+                                        <img class="img-full" src="data/035/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 8.85 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13985725" data-src="036" data-tipo="ida" data-km="17" href="#"><strong>Ruta 58:</strong> Bugambilias - Lázaro Cárdenas - Avila Camacho - Sauces</a>
+                                        <img class="img-full" src="data/036/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 17 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13999223" data-src="036" data-tipo="vuelta" data-km="11" href="#"><strong>Ruta 59:</strong> Bugambilias - Ávila Camacho - Av. Xalapa</a>
+                                        <img class="img-full" src="data/036/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 11 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14051789" data-src="037" data-tipo="ida" data-km="7.09" href="#"><strong>Ruta 60:</strong> Col. Revolucion - Av. Xalapa - Sayago</a>
+                                        <img class="img-full" src="data/037/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 7.09 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14052066" data-src="037" data-tipo="vuelta" data-km="6.59" href="#"><strong>Ruta 61:</strong> Col. Revolucion - Av. Xalapa - Sayago</a>
+                                        <img class="img-full" src="data/037/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 6.59 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14507133" data-src="038" data-tipo="ida" data-km="9.03" href="#"><strong>Ruta 62:</strong> Col. Higueras - Av. Américas - Av. Xalapa</a>
+                                        <img class="img-full" src="data/038/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 9.03 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14507437" data-src="038" data-tipo="vuelta" data-km="7.06" href="#"><strong>Ruta 63:</strong> Av. Xalapa -  Av. Américas - Col. Higueras</a>
+                                        <img class="img-full" src="data/038/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 7.06 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14539189" data-src="039" data-tipo="ida" data-km="27" href="#"><strong>Ruta 64:</strong> San Andrés - Av. Lázaro Cardes - Trancas</a>
+                                        <img class="img-full" src="data/039/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 27 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14539908" data-src="039" data-tipo="vuelta" data-km="25" href="#"><strong>Ruta 65:</strong> Trancas - Av. Lázaro Cardes - San Andrés</a>
+                                        <img class="img-full" src="data/039/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 25 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14506328" data-src="040" data-tipo="ida" data-km="15" href="#"><strong>Ruta 66:</strong> Col. Marina Nacional - Av. 20 de Noviembre - Poeta Jesús Díaz</a>
+                                        <img class="img-full" src="data/040/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 15 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14506790" data-src="040" data-tipo="vuelta" data-km="12" href="#"><strong>Ruta 67:</strong> Poeta Jesús Díaz - Av. 20 de Noviembre - Col. Marina Nacional </a>
+                                        <img class="img-full" src="data/040/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 12 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14505330" data-src="041" data-tipo="ida" data-km="6.86" href="#"><strong>Ruta 68:</strong> Trancas -  20 de Noviembre - Arteaga</a>
+                                        <img class="img-full" src="data/041/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 6.86 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14505743" data-src="041" data-tipo="vuelta" data-km="10" href="#"><strong>Ruta 69:</strong> Arteaga - 20 de Noviembre - Trancas</a>
+                                        <img class="img-full" src="data/041/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 10 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14496662" data-src="042" data-tipo="ida" data-km="14" href="#"><strong>Ruta 70:</strong> Trancas - Lázaro Cardenas - 20 de Noviembre - Plaza Crystal - Jardines de Xalapa - Sumidero - Campo de Tiro | IDA</a>
+                                        <img class="img-full" src="data/042/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 14 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14497332" data-src="042" data-tipo="vuelta" data-km="15" href="#"><strong>Ruta 71:</strong> Trancas - Lázaro Cardenas - 20 de Noviembre - Plaza Crystal - Jardines de Xalapa - Sumidero - Campo de Tiro | VUELTA</a>
+                                        <img class="img-full" src="data/042/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 15 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14495242" data-src="043" data-tipo="ida" data-km="14" href="#"><strong>Ruta 72:</strong> Santiago Andres - M. 28 de Agosto - Mercado</a>
+                                        <img class="img-full" src="data/043/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 14 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14495795" data-src="043" data-tipo="vuelta" data-km="18" href="#"><strong>Ruta 73:</strong> Mercado - M. 28 de Agosto - Santiago Andres</a>
+                                        <img class="img-full" src="data/043/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 18 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13935324" data-src="044" data-tipo="ida" data-km="8.04" href="#"><strong>Ruta 74:</strong> Lomas Verdes - Xalapa 2000 - Rebsamen - Zona UV - Centro</a>
+                                        <img class="img-full" src="data/044/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 8.04 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13935685" data-src="044" data-tipo="vuelta" data-km="11" href="#"><strong>Ruta 75:</strong> Centro - Los berros - Rebsamen - Xalapa 2000 - Lomas Verdes - Arco Sur - tecnológico - Arco Sur - Lomas Verdes</a>
+                                        <img class="img-full" src="data/044/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 11 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13973712" data-src="045" data-tipo="ruta" data-km="17" href="#"><strong>Ruta 76:</strong> Av. Americas - Pipila - Lazaro Cárdenas - Maestros Veracruzanos - Murillo Vidal - Berros - Rebsamen - Tecnológico</a>
+                                        <img class="img-full" src="data/045/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 17 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13969749" data-src="046" data-tipo="ruta" data-km="9.86" href="#"><strong>Ruta 77:</strong> Plaza Cristal - Lázaro Cárdenas - Chilpancingo - Comercial - Ruiz Cortinez - Luz del Barrio</a>
+                                        <img class="img-full" src="data/046/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 9.86 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13970341" data-src="047" data-tipo="ruta" data-km="12" href="#"><strong>Ruta 78:</strong> Luz del Barrio - Casa Blanca</a>
+                                        <img class="img-full" src="data/047/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 12 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13891917" data-src="048" data-tipo="ruta" data-km="13" href="#"><strong>Ruta 79:</strong> Coatepec Porthos - Xalapa Rotonda"</a>
+                                        <img class="img-full" src="data/048/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 13 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13871359" data-src="049" data-tipo="ruta" data-km="12" href="#"><strong>Ruta 80:</strong> Xalapa - Encinos | Carro Sauces"</a>
+                                        <img class="img-full" src="data/049/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 12 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13980461" data-src="050" data-tipo="ruta" data-km="9.21" href="#"><strong>Ruta 81:</strong> Mercado - Centro - Cristal - Peñascal - Sumidero - Campo de Tiro"</a>
+                                        <img class="img-full" src="data/050/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 9.21 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13930360" data-src="051" data-tipo="ruta" data-km="15" href="#"><strong>Ruta 82:</strong> Articulo 3ro - Lázaro Cárdenas - Trancas - La Pradera - Las Haciendas"</a>
+                                        <img class="img-full" src="data/051/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 15 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13946654" data-src="052" data-tipo="ruta" data-km="18" href="#"><strong>Ruta 83:</strong> Central de Abastos - La Martinica (Banderilla)"</a>
+                                        <img class="img-full" src="data/052/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 18 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13947065" data-src="053" data-tipo="ruta" data-km="16" href="#"><strong>Ruta 84:</strong> Las Trancas - FOVISSSTE"</a>
+                                        <img class="img-full" src="data/053/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 16 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13971870" data-src="054" data-tipo="ruta" data-km="10" href="#"><strong>Ruta 85:</strong> 20 de Noviembre - Pacho Nuevo"</a>
+                                        <img class="img-full" src="data/054/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 10 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13972180" data-src="055" data-tipo="ruta" data-km="13" href="#"><strong>Ruta 86:</strong> Central de Abastos - Campo de Tiro"</a>
+                                        <img class="img-full" src="data/055/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 13 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13906551" data-src="056" data-tipo="ruta" data-km="6" href="#"><strong>Ruta 87:</strong> Centro - Clavijero - Casa Blanca"</a>
+                                        <img class="img-full" src="data/056/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 6 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13917608" data-src="057" data-tipo="ruta" data-km="5" href="#"><strong>Ruta 88:</strong> Casa Blanca - Plaza Cristal"</a>
+                                        <img class="img-full" src="data/057/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 5 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13919401" data-src="058" data-tipo="ruta" data-km="5" href="#"><strong>Ruta 89:</strong> Poeta Jesus Dias - Sumidero"</a>
+                                        <img class="img-full" src="data/058/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 5 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13919767" data-src="059" data-tipo="ruta" data-km="6" href="#"><strong>Ruta 90:</strong> Casa blanca - Pipila - Clavijero"</a>
+                                        <img class="img-full" src="data/059/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 6 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13919935" data-src="060" data-tipo="ruta" data-km="6" href="#"><strong>Ruta 91:</strong> Pipila - Sumidero</a>
+                                        <img class="img-full" src="data/060/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 6 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13920020" data-src="061" data-tipo="circuito" data-km="18" href="#"><strong>Ruta 92:</strong> Terminal - Mercado - Sumidero</a>
+                                        <img class="img-full" src="data/061/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 18 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13920139" data-src="062" data-tipo="ruta" data-km="3.72" href="#"><strong>Ruta 93:</strong> Sumidero - Jardines</a>
+                                        <img class="img-full" src="data/062/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 3.72 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13920253" data-src="063" data-tipo="ruta" data-km="4.13" href="#"><strong>Ruta 94:</strong> Sumidero - Centro - Plaza Cristal - Calvario</a>
+                                        <img class="img-full" src="data/063/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 4.13 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13927010" data-src="064" data-tipo="ruta" data-km="9.27" href="#"><strong>Ruta 95:</strong> Mercado - 28 de agosto - San Antonio</a>
+                                        <img class="img-full" src="data/064/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 9.27 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13927412" data-src="065" data-tipo="ruta" data-km="8.56" href="#"><strong>Ruta 96:</strong> San Antonio - 28 de agosto - Mercado</a>
+                                        <img class="img-full" src="data/065/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 8,56 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13929444" data-src="066" data-tipo="ruta" data-km="11" href="#"><strong>Ruta 97:</strong> Xocotla 27 de agosto - Mecardo</a>
+                                        <img class="img-full" src="data/066/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 11 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13928750" data-src="067" data-tipo="ruta" data-km="3.54" href="#"><strong>Ruta 98:</strong> Ávila Camacho - Ignacio de la Llave - Sauces - Zona UV</a>
+                                        <img class="img-full" src="data/067/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 3.54 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14010304" data-src="068" data-tipo="ida" data-km="9" href="#"><strong>Ruta 99:</strong> Higueras - Casa Blanca - Lázaro Cárdenas - 20 de Noviembre - Zona UV - Venustiano Carranza</a>
+                                        <img class="img-full" src="data/068/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 9 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14009867" data-src="068" data-tipo="vuelta" data-km="19" href="#"><strong>Ruta 100:</strong> Carranza - Sauces - Ruiz Cortinez - Av. Xalapa - Poeta - 20 de Noviembre - Lázaro Cárdenas</a>
+                                        <img class="img-full" src="data/068/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 19 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13981388" data-src="069" data-tipo="ruta" data-km="12" href="#"><strong>Ruta 101:</strong> Coapexpan - Araucarias - Torre Animas</a>
+                                        <img class="img-full" src="data/069/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 12 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14015630" data-src="070" data-tipo="ruta" data-km="11" href="#"><strong>Ruta 102:</strong> Coapexpan - Inst. Tec. 72</a>
+                                        <img class="img-full" src="data/070/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 11 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14015998" data-src="071" data-tipo="ruta" data-km="10" href="#"><strong>Ruta 103:</strong> Tec 72 -  Coapexpan</a>
+                                        <img class="img-full" src="data/071/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 10 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13976554" data-src="072" data-tipo="circuito" data-km="26" href="#"><strong>Ruta 104:</strong> Instituto Tecnológico - Arco Sur - Rebsamen - Sauces - Avila Camacho - Americas - Pipila - Lázaro Cárdenas - Arco Sur - Instituto Tecnológico</a>
+                                        <img class="img-full" src="data/072/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 26 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13972865" data-src="073" data-tipo="ruta" data-km="7" href="#"><strong>Ruta 105:</strong> Estación - Zona UV</a>
+                                        <img class="img-full" src="data/073/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 7 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13973084" data-src="074" data-tipo="ruta" data-km="6" href="#"><strong>Ruta 106:</strong> Jardines - Estación - Centro</a>
+                                        <img class="img-full" src="data/074/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 6 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13984705" data-src="075" data-tipo="ruta" data-km="13" href="#"><strong>Ruta 107:</strong> Centro - Central de Abastos</a>
+                                        <img class="img-full" src="data/075/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 13 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13984749" data-src="076" data-tipo="ruta" data-km="4" href="#"><strong>Ruta 108:</strong> Buena Vista -  Centro</a>
+                                        <img class="img-full" src="data/076/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 4 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="14008439" data-src="077" data-tipo="ruta" data-km="14" href="#"><strong>Ruta 109:</strong> Coapexpan - M. Vidal - Torre Animas - Araucarias</a>
+                                        <img class="img-full" src="data/077/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 14 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13974394" data-src="078" data-tipo="ruta" data-km="13" href="#"><strong>Ruta 110:</strong> FOVISSSTE -  Calvario - IMSS</a>
+                                        <img class="img-full" src="data/078/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 13 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13974877" data-src="079" data-tipo="ruta" data-km="12" href="#"><strong>Ruta 111:</strong> FOVISSSTE -  Calvario</a>
+                                        <img class="img-full" src="data/079/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 12 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13921001" data-src="080" data-tipo="ruta" data-km="6.59" href="#"><strong>Ruta 112:</strong> Ruiz Cortines -  FOVISSTE - Lazaro Cardenas</a>
+                                        <img class="img-full" src="data/080/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 6.59 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="13921570" data-src="081" data-tipo="ruta" data-km="6.44" href="#"><strong>Ruta 113:</strong> Ruiz Cortines -  Zona UV</a>
+                                        <img class="img-full" src="data/081/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 6.44 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2999" data-src="082" data-tipo="circuito" data-km="28" href="#"><strong>Ruta 114:</strong> Lomas Verdes - Medicina</a>
+                                        <img class="img-full" src="data/082/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 28 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2737" data-src="083" data-tipo="circuito" data-km="19" href="#"><strong>Ruta 115:</strong> Estación - Villa Hermosa - Ruiz Cortinez - Sauces</a>
+                                        <img class="img-full" src="data/083/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 19 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="3000" data-src="084" data-tipo="circuito" data-km="25" href="#"><strong>Ruta 116:</strong> Escuela Normal - Juarez - Centro - Berros - Rebasame - Ojo de agua</a>
+                                        <img class="img-full" src="data/084/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 25 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2748" data-src="085" data-tipo="circuito" data-km="31" href="#"><strong>Ruta 117:</strong> Bugambilias - Trancas - Lázaro Cárdenas - SEFIPLAN - Av. Xalapa - Ignacio de la Llave - IMSS - Carranza - Zona UV - Rebsamen - Xalapa 2000 - Arco Sur - Tecnologico - Bugambilias</a>
+                                        <img class="img-full" src="data/085/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 31 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2750" data-src="086" data-tipo="circuito" data-km="34" href="#"><strong>Ruta 118:</strong> Articulo 3ro - Ruiz Cortinez - SEFIPLAN - Lázaro Cárdenas - Chedraui Caram - Plaza Americas - Trancas - Arco Sur - Tecnologico</a>
+                                        <img class="img-full" src="data/086/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 34 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="3001" data-src="087" data-tipo="circuito" data-km="26" href="#"><strong>Ruta 119:</strong> Torres - Centro</a>
+                                        <img class="img-full" src="data/087/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 26 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2692" data-src="088" data-tipo="circuito" data-km="16" href="#"><strong>Ruta 120:</strong> Xocotla -  Martires 28 de Agosto - Sayago</a>
+                                        <img class="img-full" src="data/088/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 16 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2734" data-src="089" data-tipo="circuito" data-km="25" href="#"><strong>Ruta 121:</strong> Buena Vista - Centra de Abastos</a>
+                                        <img class="img-full" src="data/089/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 25 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2695" data-src="090" data-tipo="circuito" data-km="17" href="#"><strong>Ruta 122:</strong> Pastoresa - Murillo Vidal - Centro</a>
+                                        <img class="img-full" src="data/090/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 17 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2735" data-src="091" data-tipo="circuito" data-km="24" href="#"><strong>Ruta 123:</strong> Sauces - Ojo de agua</a>
+                                        <img class="img-full" src="data/091/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 24 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2696" data-src="092" data-tipo="circuito" data-km="19" href="#"><strong>Ruta 124:</strong> Campo de Tiro - Crystal - Mercado</a>
+                                        <img class="img-full" src="data/092/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 19 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2736" data-src="093" data-tipo="circuito" data-km="18" href="#"><strong>Ruta 125:</strong> Estación - Calvario</a>
+                                        <img class="img-full" src="data/093/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 18 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2998" data-src="094" data-tipo="circuito" data-km="24" href="#"><strong>Ruta 126:</strong> Arco Sur - Rebsamen - Tecnológico - Trancas - Lázaro Cárdenas - Pipila - Américas - Avila Camacho - Ignacio de la llave - Sauces - Zona UV - Rebsamen - Arco Sur</a>
+                                        <img class="img-full" src="data/094/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 24 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2996" data-src="095" data-tipo="circuito" data-km="27" href="#"><strong>Ruta 127:</strong> Lomas Verdes - Medicina</a>
+                                        <img class="img-full" src="data/095/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 27 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2738" data-src="096" data-tipo="circuito" data-km="13" href="#"><strong>Ruta 128:</strong> Estación -  Terminal Bolivia</a>
+                                        <img class="img-full" src="data/096/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 13 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2739" data-src="097" data-tipo="circuito" data-km="13" href="#"><strong>Ruta 129:</strong> Estación - Ignacio de la llave</a>
+                                        <img class="img-full" src="data/097/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 13 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2740" data-src="098" data-tipo="circuito" data-km="10" href="#"><strong>Ruta 130:</strong> Calvario -  Terminal</a>
+                                        <img class="img-full" src="data/098/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 10 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2741" data-src="099" data-tipo="circuito" data-km="17" href="#"><strong>Ruta 131:</strong> Articulo 3ro - Zona UV - Berros - 20 de Noviembre - Av. Xalapa - Avila Camacho - Ruiz Cortinez</a>
+                                        <img class="img-full" src="data/099/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 17 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2742" data-src="100" data-tipo="circuito" data-km="19" href="#"><strong>Ruta 132:</strong> Lazaro Cardenas - Ruiz Cortinez</a>
+                                        <img class="img-full" src="data/100/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 19 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2743" data-src="101" data-tipo="circuito" data-km="24" href="#"><strong>Ruta 133:</strong> SEFIPLAN - Lazaro Cardenas</a>
+                                        <img class="img-full" src="data/101/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 24 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2744" data-src="102" data-tipo="circuito" data-km="30" href="#"><strong>Ruta 134:</strong> SEFIPLAN - Avila Camacho</a>
+                                        <img class="img-full" src="data/102/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 30 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2745" data-src="103" data-tipo="circuito" data-km="17" href="#"><strong>Ruta 135:</strong> Tecnica 72 - Circunvalacion</a>
+                                        <img class="img-full" src="data/103/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 17 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2746" data-src="104" data-tipo="circuito" data-km="14" href="#"><strong>Ruta 136:</strong> Coapexpan - Tecnica 72</a>
+                                        <img class="img-full" src="data/104/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 14 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2747" data-src="105" data-tipo="circuito" data-km="15" href="#"><strong>Ruta 137:</strong> Tecnica 72 - Aguascalientes</a>
+                                        <img class="img-full" src="data/105/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 15 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2728" data-src="106" data-tipo="circuito" data-km="20" href="#"><strong>Ruta 138:</strong> Fovissste - Lerdo de Tejada</a>
+                                        <img class="img-full" src="data/106/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 20 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2729" data-src="107" data-tipo="circuito" data-km="20" href="#"><strong>Ruta 139:</strong> Fovissste - IMSS</a>
+                                        <img class="img-full" src="data/107/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 20 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2730" data-src="108" data-tipo="circuito" data-km="29" href="#"><strong>Ruta 140:</strong> Fovissste - San Bruno - Trancas</a>
+                                        <img class="img-full" src="data/108/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 29 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2731" data-src="109" data-tipo="circuito" data-km="27" href="#"><strong>Ruta 141:</strong> Pastoresa - Mercado</a>
+                                        <img class="img-full" src="data/109/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 27 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2732" data-src="110" data-tipo="circuito" data-km="21" href="#"><strong>Ruta 142:</strong> Luz del Barrio - Plaza Crystal</a>
+                                        <img class="img-full" src="data/110/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 21 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2733" data-src="111" data-tipo="circuito" data-km="9.7" href="#"><strong>Ruta 143:</strong> Rancho Viejo - Xalapa</a>
+                                        <img class="img-full" src="data/111/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 9.7 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2707" data-src="112" data-tipo="circuito" data-km="18" href="#"><strong>Ruta 144:</strong> Mercado - Sumidero</a>
+                                        <img class="img-full" src="data/112/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 18 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2708" data-src="113" data-tipo="circuito" data-km="18" href="#"><strong>Ruta 145:</strong> Carolino Anaya - IMSS</a>
+                                        <img class="img-full" src="data/113/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 18 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2709" data-src="114" data-tipo="circuito" data-km="22" href="#"><strong>Ruta 146:</strong> Santa Rosa - Estación</a>
+                                        <img class="img-full" src="data/114/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 22 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2710" data-src="115" data-tipo="circuito" data-km="16" href="#"><strong>Ruta 147:</strong> Martires de Chicago - Mercado</a>
+                                        <img class="img-full" src="data/115/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 16 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2711" data-src="116" data-tipo="circuito" data-km="22" href="#"><strong>Ruta 148:</strong> Coapexpan - SEC</a>
+                                        <img class="img-full" src="data/116/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 22 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2712" data-src="117" data-tipo="circuito" data-km="17" href="#"><strong>Ruta 149:</strong> Coapexpan - Araucarias</a>
+                                        <img class="img-full" src="data/117/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 17 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2714" data-src="118" data-tipo="circuito" data-km="25" href="#"><strong>Ruta 150:</strong> Coapexpan - Araucarias</a>
+                                        <img class="img-full" src="data/118/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 25 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2713" data-src="119" data-tipo="circuito" data-km="13" href="#"><strong>Ruta 151:</strong> Higueras - Mercado</a>
+                                        <img class="img-full" src="data/119/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 13 kilometros.</span>
+                                        </li>
+                                        <li><a class="item-route colorDesactivo" id="2715" data-src="120" data-tipo="circuito" data-km="27" href="#"><strong>Ruta 152:</strong> Circuito Precidentes - Rebsamen -  Xalapa 2000 - Arco Sur - Trancas - Lazaro Cardenas - Ruiz Cortinez - Sauces - Velodromo</a>
+                                        <img class="img-full" src="data/120/imagen/bus.jpg" /><br>
+                                        <span class="info-ruta"><b>Distancia de ruta:</b> 27 kilometros.</span>
+                                        </li>
+                    				</ul>
+                                </div>
+                             </div>
+                </div><!-- end container-submenu-interno-->
+            </div>
+        </div>
+		<!-- load resources -->
+   		<script type="80e8b16db1fc444665965686-text/javascript" src="libs/js/jquery/jquery.js"></script>
+        <script type="80e8b16db1fc444665965686-text/javascript" src="libs/bootstrap/js/bootstrap.js"></script>
+      	<script type="80e8b16db1fc444665965686-text/javascript" src="libs/js/jquery/jquery-ui.js"></script>
+      	<script type="80e8b16db1fc444665965686-text/javascript" src="libs/js/map/leaflet.js"></script>
+     	<script type="80e8b16db1fc444665965686-text/javascript" src="libs/js/map/leaflet.ajax.js"></script>
+      	<script type="80e8b16db1fc444665965686-text/javascript" src="libs/js/jquery/enscroll-0.6.0.min.js"></script>
+     	<script type="80e8b16db1fc444665965686-text/javascript" src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDjYh7Gq4SYRf3LQVJ5zEU-sxBJ4M9ikpA"></script>
+     	<script type="80e8b16db1fc444665965686-text/javascript" src="libs/js/app/main.js"></script>
+        <!-- end load resources -->
+        <script type="80e8b16db1fc444665965686-text/javascript">
+		$( document ).ready(function() {
+			$( "#verutas" ).click(function() {
+				$(".container-submenu").hide();
+				$(".container-submenu-interno").show();
+			});
+			$( "#rerutas" ).click(function() {
+				$(".container-submenu").show();
+				$(".container-submenu-interno").hide();
+			});
+			$( ".container-listado-rutas ul li" ).click(function() {
+				$(".container-listado-rutas ul li").removeClass( "colorActivo" ).addClass( "colorDesactivo" );
+				$(".container-listado-rutas ul li .img-full").hide();
+				$(".container-listado-rutas ul li .info-ruta").hide();
+				$(this).removeClass( "colorDesactivo" ).addClass( "colorActivo" );
+			});
+			var tamH = $( document ).height();
+			$(".layer-map").height(tamH);
+			
+		});
+        </script>
+  	<script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="80e8b16db1fc444665965686-|49" defer></script></body>
+</html>
