@@ -399,13 +399,8 @@ export function addBusStops(
   // Usar un grupo de marcadores para mejor rendimiento
   const markerGroup = L.layerGroup().addTo(map);
   
-  // Limitar el número de paradas si hay demasiadas (para mejor rendimiento)
-  const maxStops = 50;
-  const stopsToShow = stops.length > maxStops ? 
-    // Siempre mostrar terminales si hay demasiadas paradas
-    [...stops.filter(s => s.isTerminal === true), 
-     ...stops.filter(s => s.isTerminal !== true).slice(0, maxStops - stops.filter(s => s.isTerminal === true).length)] :
-    stops;
+  // Mostrar todas las paradas sin limitación
+  const stopsToShow = stops;
   
   stopsToShow.forEach((stop) => {
     // Asegurar que isTerminal es un booleano
