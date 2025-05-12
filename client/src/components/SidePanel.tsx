@@ -35,7 +35,18 @@ export default function SidePanel({
 }: SidePanelProps) {
   const [searchQuery, setSearchQuery] = useState('');
   
-  const filteredRoutes = allRoutes.filter(route => 
+  // Ordenar rutas por número
+  const sortedRoutes = [...allRoutes].sort((a, b) => {
+    // Extraer el número de la ruta del nombre (ejemplo: "Ruta 1" -> 1)
+    const getRouteNumber = (name: string) => {
+      const match = name.match(/Ruta\s+(\d+)/i);
+      return match ? parseInt(match[1], 10) : 999; // Default to high number if no match
+    };
+    
+    return getRouteNumber(a.name) - getRouteNumber(b.name);
+  });
+  
+  const filteredRoutes = sortedRoutes.filter(route => 
     route.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
   

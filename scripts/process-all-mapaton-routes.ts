@@ -126,7 +126,7 @@ async function processAllRoutes() {
               route.id, 
               path.join(routePath, 'vuelta'),
               'vuelta',
-              2000 // Offset para IDs de vuelta
+              100 // Offset para IDs de vuelta
             );
             
             if (newRoute) {
