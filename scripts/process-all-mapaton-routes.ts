@@ -126,7 +126,7 @@ async function processAllRoutes() {
               route.id, 
               path.join(routePath, 'vuelta'),
               'vuelta',
-              100 // Offset para IDs de vuelta
+              100 // Offset pequeño para IDs de vuelta
             );
             
             if (newRoute) {
@@ -236,8 +236,10 @@ async function processRouteFromShapefile(
     const zone = determineZone(routeId, routeFeature.properties);
     
     // Generar nombre y color
-    const routeName = `Ruta ${routeId}${routeTypeSuffix}`;
-    const shortName = `R${routeId}${routeType !== 'direct' ? routeType.charAt(0).toUpperCase() : ''}`;
+    // Para rutas de vuelta, usamos el ID base (sin offset) para mantener el nombre correcto
+    const displayRouteId = routeType === 'vuelta' ? baseId : routeId;
+    const routeName = `Ruta ${displayRouteId}${routeTypeSuffix}`;
+    const shortName = `R${displayRouteId}${routeType !== 'direct' ? routeType.charAt(0).toUpperCase() : ''}`;
     const color = zoneColors[zone];
     
     // Crear objeto GeoJSON para la ruta
