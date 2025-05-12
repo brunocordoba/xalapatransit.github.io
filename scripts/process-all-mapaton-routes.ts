@@ -12,8 +12,8 @@ const execAsync = util.promisify(exec);
 // Constantes para directorios y archivos
 const SHAPEFILES_DIR = './tmp/mapaton-extract/shapefiles-mapton-ciudadano';
 const PROCESSED_DIR = './tmp/processed';
-const BATCH_SIZE = 5; // Procesar rutas en lotes para evitar timeouts
-const START_INDEX = 6; // Comenzar desde esta ruta (1-indexed)
+const BATCH_SIZE = 1; // Procesar solo una ruta a la vez
+const START_INDEX = 10; // Comenzar desde esta ruta (1-indexed)
 
 // Crear directorios de procesamiento si no existen
 if (!fs.existsSync(PROCESSED_DIR)) {
@@ -34,10 +34,8 @@ async function processAllRoutes() {
   console.log('Iniciando procesamiento de todas las rutas Mapaton...');
   
   try {
-    // Limpiar la base de datos antes de importar
-    console.log('Limpiando base de datos...');
-    await db.delete(busStops);
-    await db.delete(busRoutes);
+    // No limpiamos la base de datos para preservar las rutas ya importadas
+    console.log('Manteniendo rutas existentes...');
     
     // Obtener lista de carpetas de rutas
     const routeFolders = fs.readdirSync(SHAPEFILES_DIR)
