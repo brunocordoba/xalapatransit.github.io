@@ -10,9 +10,9 @@ import { exec } from 'child_process';
 const execAsync = util.promisify(exec);
 
 // Constantes para directorios y archivos
-const SHAPEFILES_DIR = './tmp/extracted/shapefiles-mapton-ciudadano';
+const SHAPEFILES_DIR = './tmp/mapaton-extract/shapefiles-mapton-ciudadano';
 const PROCESSED_DIR = './tmp/processed';
-const BATCH_SIZE = 5; // Procesar rutas en lotes para evitar timeouts
+const BATCH_SIZE = 30; // Procesar rutas en lotes para evitar timeouts
 
 // Crear directorios de procesamiento si no existen
 if (!fs.existsSync(PROCESSED_DIR)) {
@@ -40,7 +40,7 @@ async function processAllRoutes() {
     
     // Obtener lista de carpetas de rutas
     const routeFolders = fs.readdirSync(SHAPEFILES_DIR)
-      .filter(folder => folder.includes('_circuito') || folder.includes('_ruta'))
+      .filter(folder => folder.endsWith('_circuito') || folder.endsWith('_ruta'))
       .filter(folder => !fs.lstatSync(path.join(SHAPEFILES_DIR, folder)).isFile());
     
     console.log(`Encontradas ${routeFolders.length} carpetas de rutas`);
