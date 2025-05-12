@@ -9,7 +9,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 const db = drizzle(pool);
 
 // Parámetros para controlar el procesamiento por lotes
-const START_INDEX = 70; // Empezar desde este índice (basado en el progreso actual)
+const START_INDEX = 75; // Empezar desde este índice (basado en el progreso actual)
 const BATCH_SIZE = 10;  // Procesar este número de archivos en cada ejecución
 
 // Obtener todas las rutas de la base de datos
