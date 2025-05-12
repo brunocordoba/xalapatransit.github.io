@@ -281,50 +281,51 @@ async function processRouteFromShapefile(
     // Procesar paradas si existen
     let stopsCount = 0;
     
-    if (fs.existsSync(stopsZipPath)) {
-      // Extraer archivo de paradas
-      await execAsync(`unzip -o "${stopsZipPath}" -d "${stopsShpDir}"`);
-      
-      // Buscar archivo .shp para las paradas
-      const stopsShpFiles = findFiles(stopsShpDir, '.shp');
-      
-      if (stopsShpFiles.length > 0) {
-        // Convertir shapefile de paradas a GeoJSON
-        const stopsShpFile = stopsShpFiles[0];
-        const stopsGeoJsonFile = path.join(tmpDir, 'stops.geojson');
+    try {
+      if (fs.existsSync(stopsZipPath)) {
+        // Extraer archivo de paradas
+        await execAsync(`unzip -o "${stopsZipPath}" -d "${stopsShpDir}"`);
         
-        await execAsync(`ogr2ogr -f GeoJSON "${stopsGeoJsonFile}" "${stopsShpFile}"`);
+        // Buscar archivo .shp para las paradas
+        const stopsShpFiles = findFiles(stopsShpDir, '.shp');
         
-        if (fs.existsSync(stopsGeoJsonFile)) {
-          // Leer archivo GeoJSON y extraer datos
-          const stopsGeoJson = JSON.parse(fs.readFileSync(stopsGeoJsonFile, 'utf8'));
+        if (stopsShpFiles.length > 0) {
+          // Convertir shapefile de paradas a GeoJSON
+          const stopsShpFile = stopsShpFiles[0];
+          const stopsGeoJsonFile = path.join(tmpDir, 'stops.geojson');
           
-          if (stopsGeoJson && stopsGeoJson.features && stopsGeoJson.features.length > 0) {
-            // Crear paradas
-            stopsCount = await createStopsFromGeoJSON(route.id, stopsGeoJson);
-            console.log(`✅ Creadas ${stopsCount} paradas para la ruta ${route.id}`);
+          await execAsync(`ogr2ogr -f GeoJSON "${stopsGeoJsonFile}" "${stopsShpFile}"`);
+          
+          if (fs.existsSync(stopsGeoJsonFile)) {
+            // Leer archivo GeoJSON y extraer datos
+            const stopsGeoJson = JSON.parse(fs.readFileSync(stopsGeoJsonFile, 'utf8'));
+            
+            if (stopsGeoJson && stopsGeoJson.features && stopsGeoJson.features.length > 0) {
+              // Crear paradas
+              stopsCount = await createStopsFromGeoJSON(route.id, stopsGeoJson);
+              console.log(`✅ Creadas ${stopsCount} paradas para la ruta ${route.id}`);
+            } else {
+              console.log(`No se encontraron paradas en el GeoJSON, generando automáticamente...`);
+              stopsCount = await generateAutomaticStops(route.id, routeCoordinates);
+            }
           } else {
-            console.log(`No se encontraron paradas en el GeoJSON, generando automáticamente...`);
+            console.log(`Error al convertir shapefile de paradas a GeoJSON, generando automáticamente...`);
             stopsCount = await generateAutomaticStops(route.id, routeCoordinates);
           }
         } else {
-          console.log(`Error al convertir shapefile de paradas a GeoJSON, generando automáticamente...`);
+          console.log(`No se encontraron archivos .shp para paradas, generando automáticamente...`);
           stopsCount = await generateAutomaticStops(route.id, routeCoordinates);
         }
       } else {
-        console.log(`No se encontraron archivos .shp para paradas, generando automáticamente...`);
+        console.log(`No se encontró archivo stops.zip, generando paradas automáticamente...`);
         stopsCount = await generateAutomaticStops(route.id, routeCoordinates);
       }
-    } else {
-      console.log(`No se encontró archivo stops.zip, generando paradas automáticamente...`);
-      stopsCount = await generateAutomaticStops(route.id, routeCoordinates);
+      
+      return { route, stopsCount };
+    } catch (error) {
+      console.error(`Error procesando ruta ${routeId}:`, error);
+      throw error;
     }
-    
-    return { route, stopsCount };
-  } catch (error) {
-    console.error(`Error procesando ruta ${routeId}:`, error);
-    throw error;
-  }
 }
 
 // Función para crear paradas desde GeoJSON
