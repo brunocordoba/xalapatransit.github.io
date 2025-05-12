@@ -7,8 +7,10 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BusRoute } from '@shared/schema';
 import Header from '@/components/Header';
+import SimpleRouteMapEditor from '@/components/SimpleRouteMapEditor';
 
 export default function RouteEditor() {
   const [, setLocation] = useLocation();
@@ -149,6 +151,30 @@ export default function RouteEditor() {
     }
   };
 
+  // Función para manejar cambios en la geometría (coordenadas)
+  const handleGeometryChange = (newCoordinates: [number, number][]) => {
+    try {
+      // Obtener el GeoJSON actual
+      let geoJson = geoJsonText ? JSON.parse(geoJsonText) : null;
+      
+      if (!geoJson) return;
+      
+      // Actualizar las coordenadas en el GeoJSON
+      if (geoJson.type === 'FeatureCollection' && geoJson.features && geoJson.features.length > 0) {
+        geoJson.features[0].geometry.coordinates = newCoordinates;
+      } else if (geoJson.type === 'Feature') {
+        geoJson.geometry.coordinates = newCoordinates;
+      } else if (geoJson.coordinates) {
+        geoJson.coordinates = newCoordinates;
+      }
+      
+      // Actualizar el estado
+      setGeoJsonText(JSON.stringify(geoJson, null, 2));
+    } catch (error) {
+      console.error('Error al actualizar la geometría:', error);
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       <Header />
@@ -168,193 +194,260 @@ export default function RouteEditor() {
           </Alert>
         )}
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Buscador de rutas */}
-          <Card className="col-span-3 md:col-span-1">
-            <CardHeader>
-              <CardTitle>Buscar Ruta</CardTitle>
-              <CardDescription>Ingresa el ID de la ruta a editar</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-2">
-                <Input
-                  type="number"
-                  placeholder="ID de la ruta"
-                  value={routeId || ''}
-                  onChange={(e) => setRouteId(parseInt(e.target.value) || null)}
-                />
-                <Button onClick={handleSearch}>Buscar</Button>
-              </div>
-            </CardContent>
-          </Card>
-          
-          {/* Información básica */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Información Básica</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="name">Nombre</Label>
-                  <Input
-                    id="name"
-                    name="name"
-                    value={routeData.name || ''}
-                    onChange={handleChange}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="shortName">Nombre Corto</Label>
-                  <Input
-                    id="shortName"
-                    name="shortName"
-                    value={routeData.shortName || ''}
-                    onChange={handleChange}
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="zone">Zona</Label>
-                  <select
-                    id="zone"
-                    name="zone"
-                    className="w-full rounded-md border border-gray-300 p-2"
-                    value={routeData.zone || ''}
-                    onChange={handleChange}
-                  >
-                    <option value="">Seleccionar...</option>
-                    <option value="norte">Norte</option>
-                    <option value="sur">Sur</option>
-                    <option value="este">Este</option>
-                    <option value="oeste">Oeste</option>
-                    <option value="centro">Centro</option>
-                  </select>
-                </div>
-                <div>
-                  <Label htmlFor="stopsCount">Cantidad de Paradas</Label>
-                  <Input
-                    id="stopsCount"
-                    name="stopsCount"
-                    type="number"
-                    value={routeData.stopsCount || 0}
-                    onChange={handleChange}
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="color">Color</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="color"
-                      name="color"
-                      value={routeData.color || ''}
-                      onChange={handleChange}
-                    />
-                    <div 
-                      className="w-10 h-10 rounded border"
-                      style={{ backgroundColor: routeData.color || '#FFFFFF' }}
-                    ></div>
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="frequency">Frecuencia</Label>
-                  <Input
-                    id="frequency"
-                    name="frequency"
-                    value={routeData.frequency || ''}
-                    onChange={handleChange}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          {/* Horarios */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Horarios y Tiempos</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="scheduleStart">Hora de Inicio</Label>
-                  <Input
-                    id="scheduleStart"
-                    name="scheduleStart"
-                    value={routeData.scheduleStart || ''}
-                    onChange={handleChange}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="scheduleEnd">Hora de Fin</Label>
-                  <Input
-                    id="scheduleEnd"
-                    name="scheduleEnd"
-                    value={routeData.scheduleEnd || ''}
-                    onChange={handleChange}
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <Label htmlFor="approximateTime">Tiempo Aproximado</Label>
-                <Input
-                  id="approximateTime"
-                  name="approximateTime"
-                  value={routeData.approximateTime || ''}
-                  onChange={handleChange}
-                />
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="popular"
-                  name="popular"
-                  checked={routeData.popular || false}
-                  onChange={(e) => setRouteData({ ...routeData, popular: e.target.checked })}
-                />
-                <Label htmlFor="popular">Ruta Popular</Label>
-              </div>
-            </CardContent>
-          </Card>
-          
-          {/* GeoJSON y botones */}
-          <Card className="col-span-3">
-            <CardHeader>
-              <CardTitle>Datos GeoJSON</CardTitle>
-              <CardDescription>Editar con precaución</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Textarea
-                value={geoJsonText}
-                onChange={handleGeoJsonChange}
-                rows={10}
-                className="font-mono text-sm"
+        {/* Buscador de rutas */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Buscar Ruta</CardTitle>
+            <CardDescription>Ingresa el ID de la ruta a editar</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                placeholder="ID de la ruta"
+                value={routeId || ''}
+                onChange={(e) => setRouteId(parseInt(e.target.value) || null)}
               />
-            </CardContent>
-            <CardFooter className="flex justify-end gap-2">
-              <Button
-                onClick={() => refetch()}
-                variant="outline"
-                disabled={loading || !routeId}
-              >
-                Descartar Cambios
-              </Button>
-              <Button
-                onClick={handleSave}
-                disabled={loading || !routeId}
-              >
-                {loading ? 'Guardando...' : 'Guardar Cambios'}
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
+              <Button onClick={handleSearch}>Buscar</Button>
+            </div>
+          </CardContent>
+        </Card>
+        
+        {route && (
+          <Tabs defaultValue="visual" className="w-full">
+            <TabsList className="mb-4">
+              <TabsTrigger value="visual">Editor Visual</TabsTrigger>
+              <TabsTrigger value="info">Información</TabsTrigger>
+              <TabsTrigger value="geojson">GeoJSON Avanzado</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="visual">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Editor Visual de Ruta</CardTitle>
+                  <CardDescription>
+                    Arrastra los marcadores para ajustar la ruta o agrega nuevos puntos
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <SimpleRouteMapEditor
+                    route={route}
+                    onGeometryChange={handleGeometryChange}
+                  />
+                </CardContent>
+                <CardFooter className="flex justify-end gap-2">
+                  <Button
+                    onClick={() => refetch()}
+                    variant="outline"
+                    disabled={loading}
+                  >
+                    Descartar Cambios
+                  </Button>
+                  <Button
+                    onClick={handleSave}
+                    disabled={loading}
+                  >
+                    {loading ? 'Guardando...' : 'Guardar Cambios'}
+                  </Button>
+                </CardFooter>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="info">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Información básica */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Información Básica</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="name">Nombre</Label>
+                        <Input
+                          id="name"
+                          name="name"
+                          value={routeData.name || ''}
+                          onChange={handleChange}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="shortName">Nombre Corto</Label>
+                        <Input
+                          id="shortName"
+                          name="shortName"
+                          value={routeData.shortName || ''}
+                          onChange={handleChange}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="zone">Zona</Label>
+                        <select
+                          id="zone"
+                          name="zone"
+                          className="w-full rounded-md border border-gray-300 p-2"
+                          value={routeData.zone || ''}
+                          onChange={handleChange}
+                        >
+                          <option value="">Seleccionar...</option>
+                          <option value="norte">Norte</option>
+                          <option value="sur">Sur</option>
+                          <option value="este">Este</option>
+                          <option value="oeste">Oeste</option>
+                          <option value="centro">Centro</option>
+                        </select>
+                      </div>
+                      <div>
+                        <Label htmlFor="stopsCount">Cantidad de Paradas</Label>
+                        <Input
+                          id="stopsCount"
+                          name="stopsCount"
+                          type="number"
+                          value={routeData.stopsCount || 0}
+                          onChange={handleChange}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="color">Color</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            id="color"
+                            name="color"
+                            value={routeData.color || ''}
+                            onChange={handleChange}
+                          />
+                          <div 
+                            className="w-10 h-10 rounded border"
+                            style={{ backgroundColor: routeData.color || '#FFFFFF' }}
+                          ></div>
+                        </div>
+                      </div>
+                      <div>
+                        <Label htmlFor="frequency">Frecuencia</Label>
+                        <Input
+                          id="frequency"
+                          name="frequency"
+                          value={routeData.frequency || ''}
+                          onChange={handleChange}
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                {/* Horarios */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Horarios y Tiempos</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="scheduleStart">Hora de Inicio</Label>
+                        <Input
+                          id="scheduleStart"
+                          name="scheduleStart"
+                          value={routeData.scheduleStart || ''}
+                          onChange={handleChange}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="scheduleEnd">Hora de Fin</Label>
+                        <Input
+                          id="scheduleEnd"
+                          name="scheduleEnd"
+                          value={routeData.scheduleEnd || ''}
+                          onChange={handleChange}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="approximateTime">Tiempo Aproximado</Label>
+                      <Input
+                        id="approximateTime"
+                        name="approximateTime"
+                        value={routeData.approximateTime || ''}
+                        onChange={handleChange}
+                      />
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="popular"
+                        name="popular"
+                        checked={routeData.popular || false}
+                        onChange={(e) => setRouteData({ ...routeData, popular: e.target.checked })}
+                      />
+                      <Label htmlFor="popular">Ruta Popular</Label>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                {/* Botones para guardar la información */}
+                <Card className="col-span-2">
+                  <CardContent className="pt-6">
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        onClick={() => refetch()}
+                        variant="outline"
+                        disabled={loading}
+                      >
+                        Descartar Cambios
+                      </Button>
+                      <Button
+                        onClick={handleSave}
+                        disabled={loading}
+                      >
+                        {loading ? 'Guardando...' : 'Guardar Cambios'}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="geojson">
+              {/* GeoJSON Avanzado */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Datos GeoJSON</CardTitle>
+                  <CardDescription>Editor avanzado para modificar directamente el GeoJSON</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Textarea
+                    value={geoJsonText}
+                    onChange={handleGeoJsonChange}
+                    rows={15}
+                    className="font-mono text-sm"
+                  />
+                </CardContent>
+                <CardFooter className="flex justify-end gap-2">
+                  <Button
+                    onClick={() => refetch()}
+                    variant="outline"
+                    disabled={loading}
+                  >
+                    Descartar Cambios
+                  </Button>
+                  <Button
+                    onClick={handleSave}
+                    disabled={loading}
+                  >
+                    {loading ? 'Guardando...' : 'Guardar Cambios'}
+                  </Button>
+                </CardFooter>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        )}
       </div>
     </div>
   );
