@@ -13,7 +13,7 @@ const execAsync = util.promisify(exec);
 const SHAPEFILES_DIR = './tmp/mapaton-extract/shapefiles-mapton-ciudadano';
 const PROCESSED_DIR = './tmp/processed';
 const BATCH_SIZE = 1; // Procesar solo una ruta a la vez
-const START_INDEX = 2; // Comenzar desde esta ruta (1-indexed)
+const START_INDEX = 1; // Comenzar desde esta ruta (1-indexed)
 
 // Crear directorios de procesamiento si no existen
 if (!fs.existsSync(PROCESSED_DIR)) {
@@ -397,8 +397,8 @@ async function generateAutomaticStops(routeId: number, coordinates: [number, num
     
     // Determinar número óptimo de paradas según longitud de la ruta
     const totalStops = Math.min(
-      Math.max(5, Math.floor(coordinates.length / 100)),
-      15 // máximo 15 paradas para no sobrecargar
+      Math.max(10, Math.floor(coordinates.length / 50)),
+      40 // máximo 40 paradas para tener una mejor distribución
     );
     
     let count = 0;
