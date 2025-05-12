@@ -12,7 +12,8 @@ const execAsync = util.promisify(exec);
 // Constantes para directorios y archivos
 const SHAPEFILES_DIR = './tmp/mapaton-extract/shapefiles-mapton-ciudadano';
 const PROCESSED_DIR = './tmp/processed';
-const BATCH_SIZE = 30; // Procesar rutas en lotes para evitar timeouts
+const BATCH_SIZE = 5; // Procesar rutas en lotes para evitar timeouts
+const START_INDEX = 6; // Comenzar desde esta ruta (1-indexed)
 
 // Crear directorios de procesamiento si no existen
 if (!fs.existsSync(PROCESSED_DIR)) {
@@ -59,11 +60,16 @@ async function processAllRoutes() {
     // Ordenar rutas por ID
     routeInfo.sort((a, b) => a.id - b.id);
     
+    // Filtrar rutas para comenzar desde START_INDEX
+    const filteredRouteInfo = routeInfo.filter(route => route.id >= START_INDEX);
+    
     // Procesar rutas en lotes
-    const totalRoutes = routeInfo.length;
+    const totalRoutes = filteredRouteInfo.length;
+    const totalAllRoutes = routeInfo.length;
     const batches = Math.ceil(totalRoutes / BATCH_SIZE);
     
-    console.log(`Procesando ${totalRoutes} rutas en ${batches} lotes de ${BATCH_SIZE}`);
+    console.log(`Procesando ${totalRoutes} rutas (de ${totalAllRoutes} totales) en ${batches} lotes de ${BATCH_SIZE}`);
+    console.log(`Comenzando desde la ruta ID ${START_INDEX}`);
     
     let successCount = 0;
     let errorCount = 0;
@@ -72,7 +78,7 @@ async function processAllRoutes() {
     for (let batch = 0; batch < batches; batch++) {
       const start = batch * BATCH_SIZE;
       const end = Math.min(start + BATCH_SIZE, totalRoutes);
-      const currentBatch = routeInfo.slice(start, end);
+      const currentBatch = filteredRouteInfo.slice(start, end);
       
       console.log(`\n--- Procesando lote ${batch + 1}/${batches} (rutas ${start + 1}-${end}) ---`);
       
