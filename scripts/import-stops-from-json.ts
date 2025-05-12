@@ -32,9 +32,23 @@ async function importStopsFromJson() {
     // Usamos las features como nuestros datos de paradas
     const stopsData = geoJson.features;
     
-    // Antes de importar, eliminamos todas las paradas existentes
+    // Buscar el ID correcto de la ruta 1
+    const routeResult = await db.execute(sql`
+      SELECT id, name FROM bus_routes WHERE name LIKE '%Ruta 1%' AND name NOT LIKE '%Ruta 10%' AND name NOT LIKE '%Ruta 11%' AND name NOT LIKE '%Ruta 12%' ORDER BY id LIMIT 1
+    `);
+    
+    if (routeResult.rowCount === 0) {
+      console.error('No se encontró la Ruta 1 en la base de datos');
+      return;
+    }
+    
+    const routeId = routeResult.rows[0].id;
+    const routeName = routeResult.rows[0].name;
+    console.log(`Encontrada la ruta: ${routeName} (ID: ${routeId})`);
+    
+    // Antes de importar, eliminamos las paradas existentes para esta ruta
     console.log('Eliminando paradas existentes...');
-    await db.execute(sql`DELETE FROM bus_stops`);
+    await db.execute(sql`DELETE FROM bus_stops WHERE route_id = ${routeId}`);
     console.log('Paradas existentes eliminadas.');
     
     // Procesar cada parada e insertarla en la base de datos
