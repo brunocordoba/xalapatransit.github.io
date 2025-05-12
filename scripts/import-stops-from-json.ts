@@ -1,130 +1,106 @@
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
 import { pool } from '../server/db';
-import { busStops, busRoutes } from '../shared/schema';
+import { busStops } from '../shared/schema';
+import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { eq } from 'drizzle-orm';
+import * as fs from 'fs';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 const db = drizzle(pool);
 
+// Importar paradas directamente desde un archivo JSON
 async function importStopsFromJson() {
   try {
-    // Ruta al archivo JSON de paradas
-    const stopsJsonPath = path.join(__dirname, '..', 'attached_assets', '2017-03-04_04-27_stops.json');
+    // Leer el archivo JSON de stops
+    console.log('Leyendo el archivo de paradas...');
+    const stopsJsonPath = 'attached_assets/2017-03-04_04-27_stops.json';
     
-    console.log(`Importando paradas desde ${stopsJsonPath}`);
-    
-    // Verificar si el archivo existe
     if (!fs.existsSync(stopsJsonPath)) {
-      console.error(`Archivo no encontrado: ${stopsJsonPath}`);
+      console.error(`El archivo ${stopsJsonPath} no existe.`);
       return;
     }
     
-    // Leer el archivo JSON
-    const stopsJson = fs.readFileSync(stopsJsonPath, 'utf-8');
-    const stopsData = JSON.parse(stopsJson);
+    const stopsJsonContent = fs.readFileSync(stopsJsonPath, 'utf8');
+    const geoJson = JSON.parse(stopsJsonContent);
     
-    // Verificar que tiene el formato correcto (GeoJSON FeatureCollection)
-    if (!stopsData.type || stopsData.type !== 'FeatureCollection' || !Array.isArray(stopsData.features)) {
-      console.error('El archivo de paradas no tiene el formato GeoJSON FeatureCollection esperado');
+    // Verificar que sea un GeoJSON válido
+    if (!geoJson.type || geoJson.type !== 'FeatureCollection' || !Array.isArray(geoJson.features)) {
+      console.error('El formato del archivo JSON no es correcto. Se esperaba un GeoJSON FeatureCollection.');
       return;
     }
     
-    // Obtener todas las rutas para el mapeo de IDs
-    const routes = await db.select().from(busRoutes);
-    console.log(`Se encontraron ${routes.length} rutas en la base de datos`);
+    console.log(`Se encontraron ${geoJson.features.length} paradas en el archivo GeoJSON.`);
     
-    // Agrupar las paradas por routeId
-    const stopsByRouteId = new Map<string, any[]>();
+    // Usamos las features como nuestros datos de paradas
+    const stopsData = geoJson.features;
     
-    stopsData.features.forEach(feature => {
-      const properties = feature.properties;
-      const routeId = properties.routeId;
-      
-      if (!stopsByRouteId.has(routeId)) {
-        stopsByRouteId.set(routeId, []);
-      }
-      
-      stopsByRouteId.get(routeId)?.push({
-        ...properties,
-        coordinates: feature.geometry.coordinates
-      });
-    });
+    // Antes de importar, eliminamos todas las paradas existentes
+    console.log('Eliminando paradas existentes...');
+    await db.execute(sql`DELETE FROM bus_stops`);
+    console.log('Paradas existentes eliminadas.');
     
-    console.log(`Se encontraron ${stopsByRouteId.size} conjuntos de paradas para diferentes rutas`);
+    // Procesar cada parada e insertarla en la base de datos
+    let insertedCount = 0;
     
-    // Para cada conjunto de paradas, buscar la ruta correspondiente y crear las paradas
-    let totalImported = 0;
-    let routesWithStops = 0;
-    
-    // Como no tenemos una manera directa de mapear los IDs del JSON a los IDs de nuestra DB,
-    // lo haremos secuencialmente, es decir, asignaremos el primer conjunto de paradas a la primera ruta, etc.
-    const routeIds = Array.from(stopsByRouteId.keys());
-    const validRouteIds = routes.map(r => r.id);
-    
-    for (let i = 0; i < Math.min(routeIds.length, validRouteIds.length); i++) {
-      const jsonRouteId = routeIds[i];
-      const dbRouteId = validRouteIds[i];
-      const stops = stopsByRouteId.get(jsonRouteId) || [];
-      
-      // Verificar si ya hay paradas para esta ruta
-      const existingStops = await db.select()
-        .from(busStops)
-        .where(eq(busStops.routeId, dbRouteId));
-      
-      if (existingStops.length > 0) {
-        console.log(`La ruta ${dbRouteId} ya tiene ${existingStops.length} paradas, saltando...`);
+    for (const stop of stopsData) {
+      // Verificar que el feature tenga geometría y propiedades
+      if (!stop.geometry || !stop.properties || !stop.geometry.coordinates) {
+        console.warn('Parada inválida, sin geometría o propiedades:', stop);
         continue;
       }
       
-      console.log(`Procesando ${stops.length} paradas para la ruta ${dbRouteId} (JSON ID: ${jsonRouteId})`);
-      
-      // Procesar cada parada
-      for (let j = 0; j < stops.length; j++) {
-        const stop = stops[j];
-        const [longitude, latitude] = stop.coordinates;
-        const isTerminal = j === 0 || j === stops.length - 1;
-        const terminalType = isTerminal ? (j === 0 ? 'inicio' : 'fin') : '';
-        const stopName = `Parada ${dbRouteId}-${j + 1}`;
-        
-        // Insertar parada en la base de datos
-        await db.insert(busStops).values({
-          routeId: dbRouteId,
-          name: stopName,
-          latitude: latitude.toString(),
-          longitude: longitude.toString(),
-          isTerminal,
-          terminalType
-        });
-        
-        totalImported++;
+      // Extraer coordenadas
+      const coordinates = stop.geometry.coordinates;
+      if (!Array.isArray(coordinates) || coordinates.length !== 2) {
+        console.warn('Formato de coordenadas inválido:', coordinates);
+        continue;
       }
       
-      routesWithStops++;
-      console.log(`Se importaron ${stops.length} paradas para la ruta ${dbRouteId}`);
+      // Usar el ID de la Ruta 1 (345) para todas las paradas
+      const routeId = 345;
+      
+      // Usar el sequence para generar un nombre único si no hay uno definido
+      const sequence = stop.properties.sequence !== undefined ? stop.properties.sequence : insertedCount;
+      const name = stop.properties.name || `Parada ${routeId}-${sequence}`;
+      
+      // Coordenadas (en GeoJSON son [lon, lat])
+      const longitude = coordinates[0].toString();
+      const latitude = coordinates[1].toString();
+      
+      // Determinar si es terminal (primero o último en la secuencia)
+      const isTerminal = sequence === 0 || sequence === stopsData.length - 1;
+      const terminalType = sequence === 0 ? 'inicio' : (sequence === stopsData.length - 1 ? 'fin' : '');
+      
+      try {
+        // Insertar la parada
+        await db.execute(sql`
+          INSERT INTO bus_stops 
+          (route_id, name, latitude, longitude, is_terminal, terminal_type)
+          VALUES (${routeId}, ${name}, ${latitude}, ${longitude}, ${isTerminal}, ${terminalType})
+        `);
+        
+        insertedCount++;
+        
+        // Mostrar progreso cada 10 paradas
+        if (insertedCount % 10 === 0) {
+          console.log(`Insertadas ${insertedCount} paradas...`);
+        }
+      } catch (error) {
+        console.error(`Error al insertar parada ${name}:`, error);
+      }
     }
     
-    console.log(`Proceso completado. Se importaron ${totalImported} paradas para ${routesWithStops} rutas.`);
-    return { totalImported, routesWithStops };
+    console.log(`Importación completada. Se importaron ${insertedCount} paradas de ${stopsData.length}.`);
   } catch (error) {
-    console.error('Error en importStopsFromJson:', error);
-    return { totalImported: 0, routesWithStops: 0 };
+    console.error('Error al importar paradas desde JSON:', error);
   }
 }
 
-// Ejecutar la función
+// Ejecutar la importación
 importStopsFromJson()
-  .then((result) => {
-    const totalImported = result?.totalImported || 0;
-    const routesWithStops = result?.routesWithStops || 0;
-    console.log(`Proceso completado con éxito. Se importaron ${totalImported} paradas para ${routesWithStops} rutas.`);
+  .then(() => {
+    console.log('Proceso finalizado.');
     process.exit(0);
   })
   .catch(error => {
-    console.error('Error en el proceso:', error);
+    console.error('Error en el proceso principal:', error);
     process.exit(1);
   });

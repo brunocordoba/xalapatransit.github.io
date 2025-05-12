@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import * as AdmZip from 'adm-zip';
+import AdmZip from 'adm-zip';
 import { pool } from '../server/db';
 import { busStops, busRoutes } from '../shared/schema';
 import { sql } from 'drizzle-orm';
