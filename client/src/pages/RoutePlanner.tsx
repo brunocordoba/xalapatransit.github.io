@@ -5,17 +5,161 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { CalendarIcon, Clock10Icon, Clock3Icon, ArrowUpDown, MapPin, XIcon } from "lucide-react";
+import { CalendarIcon, Clock10Icon, Clock3Icon, ArrowUpDown, MapPin, XIcon, Map, SearchIcon } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import RouteMapView from "../components/RouteMapView";
 import { useQuery } from "@tanstack/react-query";
 import { BusRoute } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { zones } from "@/lib/constants";
+
+// Componente para el botón de "Todas las Rutas" con diálogo
+interface AllRoutesDialogButtonProps {
+  routes: BusRoute[];
+  isLoading: boolean;
+}
+
+const AllRoutesDialogButton: React.FC<AllRoutesDialogButtonProps> = ({ routes, isLoading }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedZone, setSelectedZone] = useState<string>('all');
+  const [selectedRouteId, setSelectedRouteId] = useState<number | null>(null);
+  
+  // Filtrar rutas por zona
+  const zoneFilteredRoutes = selectedZone === 'all' 
+    ? routes 
+    : routes.filter(route => route.zone === selectedZone);
+    
+  // Ordenar rutas por número
+  const sortedRoutes = [...zoneFilteredRoutes].sort((a, b) => {
+    const getRouteNumber = (name: string) => {
+      const match = name.match(/Ruta\s+(\d+)/i);
+      return match ? parseInt(match[1], 10) : 999;
+    };
+    
+    return getRouteNumber(a.name) - getRouteNumber(b.name);
+  });
+  
+  // Filtrar rutas por texto de búsqueda
+  const filteredRoutes = sortedRoutes.filter(route => 
+    route.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    route.shortName.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  
+  const handleRouteSelect = (routeId: number) => {
+    setSelectedRouteId(routeId);
+    // Aquí puedes añadir lógica adicional cuando se selecciona una ruta
+  };
+  
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button 
+          variant="outline"
+          className="w-full py-3 rounded-none bg-white text-[#4caf50] hover:bg-gray-50 border-[#4caf50] hover:border-[#3d8b40] border-2 flex items-center justify-center gap-2"
+        >
+          <Map className="h-5 w-5" />
+          <span className="text-base font-bold">TODAS LAS RUTAS</span>
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="p-4 border-b bg-green-50">
+          <DialogTitle className="text-xl font-bold text-center text-green-800">Todas las Rutas de Xalapa</DialogTitle>
+          
+          <div className="relative mt-3">
+            <Input 
+              type="text" 
+              placeholder="Buscar ruta por número o nombre..." 
+              className="pl-10 pr-4 py-2 border-green-200 focus:border-green-400 focus:ring-green-400"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <SearchIcon className="h-5 w-5 absolute left-3 top-3 text-green-500" />
+          </div>
+          
+          {/* Filtro por zonas */}
+          <div className="mt-3">
+            <div className="flex flex-wrap gap-2 justify-center">
+              <Button 
+                variant={selectedZone === 'all' ? 'default' : 'outline'} 
+                className={`px-3 py-1 h-8 text-sm rounded-full ${selectedZone === 'all' ? 'bg-green-600 hover:bg-green-700' : 'border-green-300 text-green-700 hover:bg-green-50'}`}
+                onClick={() => setSelectedZone('all')}
+              >
+                Todas
+              </Button>
+              
+              {zones.map(zone => (
+                <Button 
+                  key={zone.value} 
+                  variant={selectedZone === zone.value ? 'default' : 'outline'} 
+                  className={`px-3 py-1 h-8 text-sm rounded-full ${selectedZone === zone.value ? 'bg-green-600 hover:bg-green-700' : 'border-green-300 text-green-700 hover:bg-green-50'}`}
+                  onClick={() => setSelectedZone(zone.value)}
+                >
+                  {zone.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </DialogHeader>
+        
+        {/* Lista de rutas */}
+        <div className="overflow-y-auto flex-grow p-4 space-y-2 max-h-[60vh]">
+          {isLoading ? (
+            // Skeleton loaders
+            Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="p-3 rounded-lg border border-gray-200 flex items-center space-x-3">
+                <Skeleton className="w-10 h-10 rounded-full" />
+                <div className="space-y-2 flex-1">
+                  <Skeleton className="h-4 w-4/5" />
+                  <Skeleton className="h-3 w-3/5" />
+                </div>
+              </div>
+            ))
+          ) : (
+            filteredRoutes.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {filteredRoutes.map(route => (
+                  <div 
+                    key={route.id} 
+                    className={`p-3 rounded-lg border ${selectedRouteId === route.id ? 'bg-green-50 border-green-300' : 'border-gray-200 hover:bg-gray-50'} 
+                              cursor-pointer flex items-center space-x-3 transition-colors`}
+                    onClick={() => handleRouteSelect(route.id)}
+                  >
+                    <div 
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm"
+                      style={{ backgroundColor: route.color }}
+                    >
+                      {route.shortName}
+                    </div>
+                    <div>
+                      <h3 className="font-medium">{route.name}</h3>
+                      <p className="text-sm text-gray-500">Cada {route.frequency} · {route.stopsCount} paradas</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <SearchIcon className="h-10 w-10 text-gray-300 mb-2" />
+                <p className="text-gray-500">No se encontraron rutas que coincidan con tu búsqueda.</p>
+              </div>
+            )
+          )}
+        </div>
+        
+        <div className="p-4 border-t bg-green-50 text-xs text-green-700 text-center">
+          Selecciona una ruta para ver su trayecto en el mapa
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 const RoutePlanner: React.FC = () => {
   const [startLocation, setStartLocation] = useState("");
@@ -28,11 +172,39 @@ const RoutePlanner: React.FC = () => {
   const [isArrival, setIsArrival] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
   const [routeResults, setRouteResults] = useState<any[] | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedZone, setSelectedZone] = useState<string>('all');
   
   // Cargar todas las rutas para poder mostrarlas en el mapa
-  const { data: routes } = useQuery<BusRoute[]>({
+  const { data: routes, isLoading: routesLoading } = useQuery<BusRoute[]>({
     queryKey: ['/api/routes'],
   });
+  
+  // Filtrar y ordenar rutas para el panel de Todas las Rutas
+  const filteredAndSortedRoutes = React.useMemo(() => {
+    if (!routes) return [];
+    
+    // Filtrar por zona
+    const zoneFiltered = selectedZone === 'all' 
+      ? routes 
+      : routes.filter(route => route.zone === selectedZone);
+    
+    // Filtrar por término de búsqueda
+    const searchFiltered = zoneFiltered.filter(route => 
+      route.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      route.shortName.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    
+    // Ordenar por número
+    return [...searchFiltered].sort((a, b) => {
+      const getRouteNumber = (name: string) => {
+        const match = name.match(/Ruta\s+(\d+)/i);
+        return match ? parseInt(match[1], 10) : 999;
+      };
+      
+      return getRouteNumber(a.name) - getRouteNumber(b.name);
+    });
+  }, [routes, selectedZone, searchTerm]);
 
   const handleSwapLocations = () => {
     const temp = startLocation;
@@ -280,7 +452,7 @@ const RoutePlanner: React.FC = () => {
                   </TabsContent>
                 </Tabs>
               </CardContent>
-              <CardFooter>
+              <CardFooter className="flex flex-col space-y-2">
                 <Button 
                   onClick={handleCalculateRoute}
                   disabled={!startLocation || !endLocation || isCalculating}
@@ -288,6 +460,107 @@ const RoutePlanner: React.FC = () => {
                 >
                   {isCalculating ? "Calculando..." : "BUSCAR ITINERARIO"}
                 </Button>
+                
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button 
+                      variant="outline"
+                      className="w-full py-3 rounded-none bg-white text-[#4caf50] hover:bg-gray-50 border-[#4caf50] hover:border-[#3d8b40] border-2 flex items-center justify-center gap-2"
+                    >
+                      <Map className="h-5 w-5" />
+                      <span className="text-base font-bold">TODAS LAS RUTAS</span>
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+                    <DialogHeader className="p-4 border-b bg-green-50">
+                      <DialogTitle className="text-xl font-bold text-center text-green-800">Todas las Rutas de Xalapa</DialogTitle>
+                      
+                      <div className="relative mt-3">
+                        <Input 
+                          type="text" 
+                          placeholder="Buscar ruta por número o nombre..." 
+                          className="pl-10 pr-4 py-2 border-green-200 focus:border-green-400 focus:ring-green-400"
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                        <SearchIcon className="h-5 w-5 absolute left-3 top-3 text-green-500" />
+                      </div>
+                      
+                      {/* Filtro por zonas */}
+                      <div className="mt-3">
+                        <div className="flex flex-wrap gap-2 justify-center">
+                          <Button 
+                            variant={selectedZone === 'all' ? 'default' : 'outline'} 
+                            className={`px-3 py-1 h-8 text-sm rounded-full ${selectedZone === 'all' ? 'bg-green-600 hover:bg-green-700' : 'border-green-300 text-green-700 hover:bg-green-50'}`}
+                            onClick={() => setSelectedZone('all')}
+                          >
+                            Todas
+                          </Button>
+                          
+                          {zones.map(zone => (
+                            <Button 
+                              key={zone.value} 
+                              variant={selectedZone === zone.value ? 'default' : 'outline'} 
+                              className={`px-3 py-1 h-8 text-sm rounded-full ${selectedZone === zone.value ? 'bg-green-600 hover:bg-green-700' : 'border-green-300 text-green-700 hover:bg-green-50'}`}
+                              onClick={() => setSelectedZone(zone.value)}
+                            >
+                              {zone.label}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    </DialogHeader>
+                    
+                    {/* Lista de rutas */}
+                    <div className="overflow-y-auto flex-grow p-4 space-y-2 max-h-[60vh]">
+                      {routesLoading ? (
+                        // Skeleton loaders
+                        Array.from({ length: 6 }).map((_, i) => (
+                          <div key={i} className="p-3 rounded-lg border border-gray-200 flex items-center space-x-3">
+                            <Skeleton className="w-10 h-10 rounded-full" />
+                            <div className="space-y-2 flex-1">
+                              <Skeleton className="h-4 w-4/5" />
+                              <Skeleton className="h-3 w-3/5" />
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        filteredAndSortedRoutes.length > 0 ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {filteredAndSortedRoutes.map(route => (
+                              <div 
+                                key={route.id} 
+                                className={`p-3 rounded-lg border border-gray-200 hover:bg-gray-50
+                                          cursor-pointer flex items-center space-x-3 transition-colors`}
+                                onClick={() => {/* Aquí la lógica cuando se selecciona una ruta */}}
+                              >
+                                <div 
+                                  className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm"
+                                  style={{ backgroundColor: route.color }}
+                                >
+                                  {route.shortName}
+                                </div>
+                                <div>
+                                  <h3 className="font-medium">{route.name}</h3>
+                                  <p className="text-sm text-gray-500">Cada {route.frequency} · {route.stopsCount} paradas</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center py-8 text-center">
+                            <SearchIcon className="h-10 w-10 text-gray-300 mb-2" />
+                            <p className="text-gray-500">No se encontraron rutas que coincidan con tu búsqueda.</p>
+                          </div>
+                        )
+                      )}
+                    </div>
+                    
+                    <div className="p-4 border-t bg-green-50 text-xs text-green-700 text-center">
+                      Selecciona una ruta para ver su trayecto en el mapa
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </CardFooter>
             </Card>
 
