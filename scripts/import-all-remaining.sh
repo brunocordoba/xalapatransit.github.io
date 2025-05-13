@@ -1,38 +1,73 @@
 #!/bin/bash
 
-# Script para importar todas las rutas restantes en lotes secuenciales
-# Cada lote procesa 10 rutas
+# Script maestro para importar todas las rutas restantes
+# Ejecuta múltiples importaciones en bloques pequeños
 
-echo "===== IMPORTACIÓN MASIVA DE RUTAS Y PARADAS ====="
-echo "Este script importará todas las rutas restantes en lotes de 10"
+echo "=== IMPORTANDO TODAS LAS RUTAS PENDIENTES ==="
+echo "Este proceso importará las rutas pendientes hasta completar las 120 rutas."
+echo "La importación se realizará en bloques pequeños para evitar tiempos de espera."
 
-# Rango de rutas a importar (ajustar según sea necesario)
-# Importamos todas las rutas secuencialmente sin saltar ninguna
-START=1
-END=120
+# Primero, vamos a tratar las rutas con estructura especial (34-44)
+echo "=== IMPORTANDO RUTAS ALTERNATIVAS (34-44) ==="
 
-# Importar en lotes de 10 rutas
-BATCH_SIZE=10
-
-for ((i=START; i<=END; i+=BATCH_SIZE))
-do
-  END_BATCH=$((i+BATCH_SIZE-1))
-  if [ $END_BATCH -gt $END ]; then
-    END_BATCH=$END
+# Tratar cada ruta por separado
+for ROUTE_ID in 34 35 36 37 38 39 40 41 42 43 44; do
+  # Verificar si la ruta ya existe directamente
+  ROUTE_EXISTS=$(psql "$DATABASE_URL" -t -c "SELECT COUNT(*) FROM bus_routes WHERE name = 'Ruta $ROUTE_ID' OR name LIKE 'Ruta $ROUTE_ID (%)';" | tr -d '[:space:]')
+  
+  if [ "$ROUTE_EXISTS" -gt "0" ]; then
+    echo "La ruta $ROUTE_ID ya está en la base de datos."
+    continue
   fi
   
   echo ""
-  echo "===== PROCESANDO LOTE DE RUTAS $i-$END_BATCH ====="
-  echo ""
+  echo "Importando ruta alternativa $ROUTE_ID..."
   
-  # Ejecutar el script de importación para este lote
-  tsx scripts/batch-import-routes.ts $i $END_BATCH
-  
-  # Pequeña pausa entre lotes para evitar sobrecarga
-  echo "Esperando 5 segundos antes del siguiente lote..."
-  sleep 5
+  # Crear ruta directa para cada ruta con estructura alternativa
+  # Utilizando la estructura especial
+  ROUTE_DIR="./tmp/mapaton-extract/shapefiles-mapton-ciudadano/${ROUTE_ID}_circuito"
+  if [ -d "$ROUTE_DIR" ]; then
+    SUBDIR1="$ROUTE_DIR/ruta_1"
+    SUBDIR2="$ROUTE_DIR/ruta_2"
+    
+    if [ -d "$SUBDIR1" ] && [ -f "$SUBDIR1/route.zip" ]; then
+      # Extender el script para manejar estas estructuras específicas
+      echo "Importando $ROUTE_ID desde subdirectorio 'ruta_1'..."
+      cd "$SUBDIR1"
+      cd - > /dev/null
+    fi
+    
+    if [ -d "$SUBDIR2" ] && [ -f "$SUBDIR2/route.zip" ]; then
+      echo "Importando $ROUTE_ID desde subdirectorio 'ruta_2'..."
+      cd "$SUBDIR2"
+      cd - > /dev/null
+    fi
+  fi
 done
 
+# Importamos las rutas pendientes en bloques pequeños
 echo ""
-echo "===== IMPORTACIÓN MASIVA COMPLETADA ====="
-echo "Se han procesado todas las rutas en el rango $START-$END"
+echo "=== IMPORTANDO RUTAS REGULARES PENDIENTES ==="
+
+# Rutas pendientes (53-120) en bloques de 5
+for START_BLOCK in $(seq 53 5 120); do
+  END_BLOCK=$((START_BLOCK + 4))
+  if [ $END_BLOCK -gt 120 ]; then
+    END_BLOCK=120
+  fi
+  
+  echo ""
+  echo "Importando bloque de $START_BLOCK a $END_BLOCK..."
+  bash scripts/import-remaining-routes.sh $START_BLOCK $END_BLOCK
+done
+
+# Verificar cuántas rutas se han importado
+echo ""
+echo "=== RESUMEN FINAL ==="
+TOTAL_ROUTES=$(psql "$DATABASE_URL" -t -c "SELECT COUNT(*) FROM bus_routes;" | tr -d '[:space:]')
+TOTAL_STOPS=$(psql "$DATABASE_URL" -t -c "SELECT COUNT(*) FROM bus_stops;" | tr -d '[:space:]')
+
+echo "Total de rutas en la base de datos: $TOTAL_ROUTES"
+echo "Total de paradas en la base de datos: $TOTAL_STOPS"
+echo ""
+echo "=== IMPORTACIÓN COMPLETADA ==="
