@@ -439,9 +439,9 @@ export function addBusStops(
     const isTerminal = stop.isTerminal === true;
     
     // Según la imagen, las paradas tienen bordes del color de la ruta
-    // Usamos el color de la ruta para el borde de las paradas
-    // Si es una parada terminal, usamos un color más oscuro o el mismo
-    const stopColor = route.color || '#1E88E5';
+    // Usamos el color pasado como parámetro para el borde de las paradas
+    // Si es una parada terminal, podríamos usar un color más oscuro o el mismo
+    const stopColor = color || '#1E88E5';
     
     const icon = getBusStopIcon(isTerminal, stopColor);
     const lat = parseFloat(stop.latitude);
