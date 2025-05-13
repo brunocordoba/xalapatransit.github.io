@@ -29,23 +29,48 @@ function drawSingleRoute(
   try {
     console.log("Dibujando ruta:", route.id);
     
-    // Usamos coordenadas fijas para todas las rutas para evitar problemas de formato
-    // Estas coordenadas conforman una línea diagonal a través de Xalapa
-    const fixedCoordinates: [number, number][] = [
-      [-96.9270, 19.5438],
-      [-96.9265, 19.5428],
-      [-96.9260, 19.5418],
-      [-96.9255, 19.5408],
-      [-96.9250, 19.5398],
-      [-96.9245, 19.5388],
-      [-96.9240, 19.5378],
-      [-96.9235, 19.5368],
-      [-96.9230, 19.5358],
-      [-96.9225, 19.5348]
-    ];
+    // Extraer coordenadas del GeoJSON
+    let coordinates: [number, number][] = [];
+    
+    try {
+      // Parsear el GeoJSON si es string
+      let geoJSON: any;
+      if (typeof route.geoJSON === 'string') {
+        geoJSON = JSON.parse(route.geoJSON);
+      } else {
+        geoJSON = route.geoJSON;
+      }
+      
+      if (geoJSON?.type === 'FeatureCollection' && 
+          Array.isArray(geoJSON.features) && 
+          geoJSON.features.length > 0 && 
+          geoJSON.features[0].geometry?.type === 'LineString') {
+        // Formato estándar: FeatureCollection con LineString
+        coordinates = geoJSON.features[0].geometry.coordinates;
+        console.log(`Usando coordenadas desde GeoJSON: ${coordinates.length} puntos`);
+      } else {
+        throw new Error("Formato GeoJSON no reconocido");
+      }
+    } catch (error) {
+      console.warn(`Error al procesar GeoJSON: ${error}. Usando coordenadas por defecto`);
+      
+      // Coordenadas de respaldo si hay error
+      coordinates = [
+        [-96.9270, 19.5438],
+        [-96.9265, 19.5428],
+        [-96.9260, 19.5418],
+        [-96.9255, 19.5408],
+        [-96.9250, 19.5398],
+        [-96.9245, 19.5388],
+        [-96.9240, 19.5378],
+        [-96.9235, 19.5368],
+        [-96.9230, 19.5358],
+        [-96.9225, 19.5348]
+      ];
+    }
     
     // Convertir coordenadas a formato Leaflet [lat, lng]
-    const leafletCoords = fixedCoordinates.map(coord => [coord[1], coord[0]] as [number, number]);
+    const leafletCoords = coordinates.map(coord => [coord[1], coord[0]] as [number, number]);
     
     console.log(`Dibujando ruta ${route.id} con ${leafletCoords.length} puntos`);
     
