@@ -40,11 +40,24 @@ function drawSingleRoute(
       
       if (geoJSON?.type === 'FeatureCollection' && 
           Array.isArray(geoJSON.features) && 
-          geoJSON.features.length > 0 && 
-          geoJSON.features[0].geometry?.type === 'LineString') {
-        // Formato estándar: FeatureCollection con LineString
-        coordinates = geoJSON.features[0].geometry.coordinates;
-        console.log(`Usando coordenadas desde GeoJSON para ruta ${route.id}: ${coordinates.length} puntos`);
+          geoJSON.features.length > 0) {
+        
+        const geometry = geoJSON.features[0].geometry;
+        
+        if (geometry?.type === 'LineString') {
+          // Formato estándar: FeatureCollection con LineString
+          coordinates = geometry.coordinates;
+          console.log(`Usando coordenadas LineString desde GeoJSON para ruta ${route.id}: ${coordinates.length} puntos`);
+        }
+        else if (geometry?.type === 'MultiLineString' && Array.isArray(geometry.coordinates)) {
+          // Formato MultiLineString: array de arrays de coordenadas
+          // Aplanamos el array para obtener un solo LineString
+          coordinates = geometry.coordinates.flat();
+          console.log(`Usando coordenadas MultiLineString desde GeoJSON para ruta ${route.id}: ${coordinates.length} puntos`);
+        }
+        else {
+          throw new Error(`Geometría no soportada: ${geometry?.type}`);
+        }
       } else {
         throw new Error("Formato GeoJSON no reconocido");
       }
