@@ -138,7 +138,7 @@ function drawWalkingPoints(
   // Icono para el punto de inicio (verde)
   const startIcon = L.divIcon({
     className: 'custom-div-icon',
-    html: `<div style="background-color: #00C853; width: 15px; height: 15px; 
+    html: `<div style="background-color: #4caf50; width: 15px; height: 15px; 
            border-radius: 50%; border: 2px solid white; box-shadow: 0 0 4px rgba(0,0,0,0.3);"></div>`,
     iconSize: [15, 15],
     iconAnchor: [7, 7]
@@ -147,7 +147,7 @@ function drawWalkingPoints(
   // Icono para el punto final (rojo)
   const endIcon = L.divIcon({
     className: 'custom-div-icon',
-    html: `<div style="background-color: #D50000; width: 15px; height: 15px; 
+    html: `<div style="background-color: #f44336; width: 15px; height: 15px; 
            border-radius: 50%; border: 2px solid white; box-shadow: 0 0 4px rgba(0,0,0,0.3);"></div>`,
     iconSize: [15, 15],
     iconAnchor: [7, 7]
@@ -159,7 +159,7 @@ function drawWalkingPoints(
   
   // Línea de caminata punteada
   const walkingPath = L.polyline([startPoint, endPoint], {
-    color: '#0056A4',
+    color: '#4caf50',
     weight: 3,
     opacity: 0.7,
     dashArray: '5, 7',
