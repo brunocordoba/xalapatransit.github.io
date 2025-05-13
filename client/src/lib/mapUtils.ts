@@ -57,19 +57,8 @@ export function initializeMap(container: HTMLElement, center: [number, number], 
     }).addTo(map);
   }
   
-  // Añadir un evento para comprobar y corregir si el usuario se aleja demasiado
-  map.on('moveend', () => {
-    const currentBounds = map.getBounds();
-    const maxBounds = L.latLngBounds(XALAPA_BOUNDS);
-    
-    // Si el mapa está fuera de los límites, centrarlo nuevamente en Xalapa
-    if (!maxBounds.contains(currentBounds)) {
-      console.log('El mapa se ha movido fuera de los límites de Xalapa. Reajustando...');
-      map.panTo(XALAPA_CENTER);
-    }
-  });
-  
-  console.log('Mapa inicializado con límites de Xalapa:', XALAPA_BOUNDS);
+  // No necesitamos evento moveend ya que maxBoundsViscosity:1.0 maneja este comportamiento
+  // El efecto será exactamente como en orizo.fr: te rebota hacia atrás si intentas salir del área
   
   return map;
 }
