@@ -3,6 +3,7 @@ import * as path from 'path';
 import AdmZip from 'adm-zip';
 import { db } from '../server/db';
 import { busRoutes as routes, insertBusRouteSchema } from '../shared/schema';
+import { eq } from 'drizzle-orm';
 
 // Función principal para importar ruta sin paradas
 async function importRouteOnly(routeId: number, zipPath: string) {
@@ -225,7 +226,7 @@ async function createRoute(routeId: number, coordinates: [number, number][]) {
   // Verificar si la ruta ya existe
   const existingRoutes = await db.select()
     .from(routes)
-    .where(({ eq }) => eq(routes.name, `Ruta ${routeId}`));
+    .where(eq(routes.name, `Ruta ${routeId}`));
   
   if (existingRoutes.length > 0) {
     console.log(`La Ruta ${routeId} ya existe. ID: ${existingRoutes[0].id}`);
