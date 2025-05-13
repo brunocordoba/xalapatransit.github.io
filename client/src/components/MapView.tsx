@@ -37,15 +37,25 @@ function drawSingleRoute(
     
     // Manejar diferentes formatos de GeoJSON
     if (geoJSON.type === 'Feature' && geoJSON.geometry && geoJSON.geometry.type === 'LineString') {
+      // Formato estándar GeoJSON Feature
       coordinates = geoJSON.geometry.coordinates;
+    } else if (geoJSON.type === 'FeatureCollection' && Array.isArray(geoJSON.features) && geoJSON.features.length > 0) {
+      // Formato FeatureCollection, tomar el primer feature
+      const firstFeature = geoJSON.features[0];
+      if (firstFeature.geometry && firstFeature.geometry.type === 'LineString') {
+        coordinates = firstFeature.geometry.coordinates;
+      }
     } else if (geoJSON.geometry && geoJSON.geometry.coordinates) {
+      // Objeto con geometry.coordinates
       coordinates = geoJSON.geometry.coordinates;
     } else if (geoJSON.coordinates) {
+      // Objeto con coordinates directo
       coordinates = geoJSON.coordinates;
     } else if (Array.isArray(geoJSON)) {
+      // Array directo de coordenadas
       coordinates = geoJSON;
     } else {
-      console.warn(`Formato GeoJSON no reconocido para la ruta ${route.id}`);
+      console.warn(`Formato GeoJSON no reconocido para la ruta ${route.id}`, geoJSON.type);
       return {} as any;
     }
     
