@@ -29,30 +29,23 @@ function drawSingleRoute(
   try {
     console.log("Dibujando ruta:", route.id);
     
-    // Coordenadas fijas para todas las rutas temporalmente
+    // Usamos coordenadas fijas para todas las rutas para evitar problemas de formato
+    // Estas coordenadas conforman una línea diagonal a través de Xalapa
     const fixedCoordinates: [number, number][] = [
-      [-96.927, 19.5438],
-      [-96.926, 19.5428],
-      [-96.925, 19.5418],
-      [-96.924, 19.5408],
-      [-96.923, 19.5398],
-      [-96.922, 19.5388],
-      [-96.921, 19.5378],
-      [-96.920, 19.5368],
-      [-96.919, 19.5358],
-      [-96.918, 19.5348]
+      [-96.9270, 19.5438],
+      [-96.9265, 19.5428],
+      [-96.9260, 19.5418],
+      [-96.9255, 19.5408],
+      [-96.9250, 19.5398],
+      [-96.9245, 19.5388],
+      [-96.9240, 19.5378],
+      [-96.9235, 19.5368],
+      [-96.9230, 19.5358],
+      [-96.9225, 19.5348]
     ];
     
-    // Simplificamos puntos para mejor rendimiento
-    let simplifiedCoords = fixedCoordinates;
-    
     // Convertir coordenadas a formato Leaflet [lat, lng]
-    const leafletCoords = simplifiedCoords.map(coord => {
-      if (typeof coord[0] === 'number' && typeof coord[1] === 'number') {
-        return [coord[1], coord[0]] as [number, number];
-      }
-      return coord as [number, number];
-    });
+    const leafletCoords = fixedCoordinates.map(coord => [coord[1], coord[0]] as [number, number]);
     
     console.log(`Dibujando ruta ${route.id} con ${leafletCoords.length} puntos`);
     
