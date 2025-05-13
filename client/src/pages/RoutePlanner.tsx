@@ -90,7 +90,7 @@ const RoutePlanner: React.FC = () => {
         {/* Panel de búsqueda */}
         <div className="col-span-1">
           <div className="space-y-4">
-            <Card className="shadow-lg overflow-hidden">
+            <Card className="shadow-lg overflow-hidden border-0">
               <CardHeader className="pb-2 bg-[#0056A4] text-white">
                 <CardTitle className="text-xl text-center font-bold">Mi Itinerario</CardTitle>
               </CardHeader>
