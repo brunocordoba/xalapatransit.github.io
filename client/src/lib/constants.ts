@@ -4,6 +4,19 @@ export const XALAPA_CENTER: [number, number] = [19.542, -96.9271];
 // Default zoom level
 export const DEFAULT_ZOOM = 13;
 
+// Límites de la ciudad de Xalapa (coordenadas aproximadas de la región)
+// [lat min, lng min, lat max, lng max]
+export const XALAPA_BOUNDS: [[number, number], [number, number]] = [
+  [19.489, -97.017], // Esquina suroeste: [latMin, lngMin] 
+  [19.604, -96.856]  // Esquina noreste: [latMax, lngMax]
+];
+
+// Nivel mínimo de zoom permitido
+export const MIN_ZOOM = 11;
+
+// Nivel máximo de zoom permitido
+export const MAX_ZOOM = 18;
+
 // Zone definitions
 export const zones = [
   { value: 'norte', label: 'Norte' },

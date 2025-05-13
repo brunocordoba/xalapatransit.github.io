@@ -1,5 +1,6 @@
 import L from 'leaflet';
 import { BusRoute, GeoJSONFeature } from '@shared/schema';
+import { XALAPA_CENTER, XALAPA_BOUNDS, MIN_ZOOM, MAX_ZOOM } from './constants';
 
 // Clase para agrupar las capas de una ruta
 export class RouteLayers {
@@ -26,7 +27,11 @@ export class RouteLayers {
 export function initializeMap(container: HTMLElement, center: [number, number], zoom: number): L.Map {
   const map = L.map(container, {
     zoomControl: false,
-    attributionControl: true
+    attributionControl: true,
+    minZoom: MIN_ZOOM,
+    maxZoom: MAX_ZOOM,
+    maxBounds: L.latLngBounds(XALAPA_BOUNDS),
+    maxBoundsViscosity: 1.0 // Hace que el mapa "rebote" cuando se intenta alejar de los límites
   }).setView(center, zoom);
   
   // Usar Mapbox como proveedor de mapas base (exactamente como Mapaton)
@@ -36,17 +41,35 @@ export function initializeMap(container: HTMLElement, center: [number, number], 
     // Si tenemos un token de Mapbox, usamos sus mapas de alta calidad
     L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=' + mapboxToken, {
       attribution: '© <a href="https://www.mapbox.com/about/maps/">Mapbox</a> © <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      maxZoom: 20,
+      maxZoom: MAX_ZOOM,
+      minZoom: MIN_ZOOM,
       tileSize: 512,
-      zoomOffset: -1
+      zoomOffset: -1,
+      bounds: XALAPA_BOUNDS // Asegurarse de que las tiles solo se carguen dentro de estos límites
     }).addTo(map);
   } else {
     // Fallback a OpenStreetMap si no hay token de Mapbox
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      maxZoom: 19
+      maxZoom: MAX_ZOOM,
+      minZoom: MIN_ZOOM,
+      bounds: XALAPA_BOUNDS
     }).addTo(map);
   }
+  
+  // Añadir un evento para comprobar y corregir si el usuario se aleja demasiado
+  map.on('moveend', () => {
+    const currentBounds = map.getBounds();
+    const maxBounds = L.latLngBounds(XALAPA_BOUNDS);
+    
+    // Si el mapa está fuera de los límites, centrarlo nuevamente en Xalapa
+    if (!maxBounds.contains(currentBounds)) {
+      console.log('El mapa se ha movido fuera de los límites de Xalapa. Reajustando...');
+      map.panTo(XALAPA_CENTER);
+    }
+  });
+  
+  console.log('Mapa inicializado con límites de Xalapa:', XALAPA_BOUNDS);
   
   return map;
 }
