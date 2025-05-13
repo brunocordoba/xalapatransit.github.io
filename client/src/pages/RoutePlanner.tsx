@@ -341,7 +341,19 @@ const RoutePlanner: React.FC = () => {
         <div className="col-span-1 lg:col-span-2">
           <Card className="h-[calc(100vh-2rem)]">
             <CardContent className="p-0 h-full">
-              <MapView routes={[]} selectedRouteId={null} toggleSidebar={() => {}} isSidebarVisible={false} isMobile={false} onClearSelection={() => {}} onToggleAllRoutes={() => {}} showAllRoutes={false} />
+              <RouteMapView 
+                routes={routes || []} 
+                selectedRoutes={routeResults ? routeResults.flatMap(route => 
+                  route.steps
+                    .filter(step => step.type === 'bus')
+                    .map(step => {
+                      // Encontrar el ID de la ruta basado en el nombre de la ruta
+                      const routeInfo = routes?.find(r => r.name === step.routeName);
+                      return routeInfo?.id || 0;
+                    })
+                    .filter(id => id !== 0)
+                ) : []}
+              />
             </CardContent>
           </Card>
         </div>
