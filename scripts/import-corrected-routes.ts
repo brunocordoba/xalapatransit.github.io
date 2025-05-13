@@ -277,8 +277,8 @@ async function importAllCorrectedRoutes() {
   let importedVariants = 0;
   let importedStops = 0;
   
-  // Limitar para pruebas
-  const MAX_ROUTES_TO_IMPORT = 3; // Para importación completa, cambiar a routesToProcess.length
+  // Importar todas las rutas
+  const MAX_ROUTES_TO_IMPORT = routesToProcess.length;
   
   // Ordenar rutas por ID
   routesToProcess.sort((a, b) => a.id - b.id);
