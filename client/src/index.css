@@ -103,12 +103,12 @@
 
 /* Rutas en estilo orizo.fr: amarillas (normales) y gris oscuro (seleccionadas) */
 .route-line.orizo-style {
-  stroke-width: 6; /* Más delgadas según solicitud */
+  stroke-width: 4; /* Aún más delgadas según solicitud */
   filter: none;
 }
 
 .route-line.selected.orizo-style {
-  stroke-width: 6; /* Más delgadas según solicitud */
+  stroke-width: 4; /* Aún más delgadas según solicitud */
   filter: none;
 }
 

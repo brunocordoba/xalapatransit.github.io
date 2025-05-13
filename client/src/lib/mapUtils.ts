@@ -180,39 +180,21 @@ export function drawRoutes(
         
         console.log(`Dibujando ruta ${route.id} con ${leafletCoords.length} puntos`);
         
-        // 1. Dibujar la sombra (capa inferior - estilo orizo.fr)
-        const shadowLine = L.polyline(leafletCoords, {
-          color: 'rgba(0,0,0,0.3)',
-          weight: 14,
-          opacity: 0.3,
-          lineCap: 'butt',
-          lineJoin: 'round',
-          // Aumentar smoothFactor para simplificar aún más al renderizar
-          smoothFactor: 1.0,
-          className: 'route-shadow orizo-style',
-          // Reducir el impacto de las actualizaciones visuales
-          interactive: false, // Solo la línea principal será interactiva
-          renderer: new L.SVG({ padding: 0 })
+        // Eliminamos sombras y bordes según solicitud - solo tendremos líneas simples
+        // Creamos objetos vacíos para mantener compatibilidad con el código existente
+        const shadowLine = L.polyline([], {
+          opacity: 0
         });
         
-        // 2. Dibujar el borde blanco (capa intermedia)
-        const routeOutline = L.polyline(leafletCoords, {
-          color: 'white',
-          weight: 8, // Más delgado que antes (10px)
-          opacity: 0.9,
-          lineCap: 'butt',
-          lineJoin: 'round',
-          smoothFactor: 1.0,
-          className: 'route-outline orizo-style',
-          interactive: false,
-          renderer: new L.SVG({ padding: 0 })
+        const routeOutline = L.polyline([], {
+          opacity: 0
         });
         
         // 3. Dibujar la línea de la ruta estilo orizo.fr
         // El color principal de las rutas es amarillo brillante como en la imagen de referencia
         const routeLine = L.polyline(leafletCoords, {
           color: '#FFDD00', // Amarillo brillante como en la imagen compartida
-          weight: 6, // Línea más delgada según solicitud
+          weight: 4, // Línea aún más delgada según nueva solicitud
           opacity: 1.0,
           lineCap: 'butt',
           lineJoin: 'round',
