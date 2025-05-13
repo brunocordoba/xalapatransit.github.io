@@ -204,9 +204,10 @@ export function drawRoutes(
           renderer: new L.SVG({ padding: 0 })
         });
         
-        // Añadir a la capa de grupo para mejor rendimiento en lugar de directamente al mapa
-        shadowLine.addTo(routeLayerGroup);
-        routeOutline.addTo(routeLayerGroup);
+        // Añadir solo la línea principal al mapa (sin bordes ni sombras)
+        // No agregamos shadowLine ni routeOutline para evitar completamente los bordes
+        // shadowLine.addTo(routeLayerGroup);
+        // routeOutline.addTo(routeLayerGroup);
         routeLine.addTo(routeLayerGroup);
         
         // Asegurar el orden correcto de las capas
@@ -287,13 +288,13 @@ export function highlightRoute(
           
           routeLayers.outline.setStyle({
             weight: 10,
-            opacity: 0.8,
+            opacity: 0, // Hacemos invisible el borde
             className: 'route-outline'
           });
           
           routeLayers.shadow.setStyle({
             weight: 14,
-            opacity: 0.4,
+            opacity: 0, // Hacemos invisible la sombra
             className: 'route-shadow'
           });
         } 
@@ -345,15 +346,14 @@ export function highlightRoute(
           className: 'route-line selected orizo-style'
         });
         
+        // Hacer invisible el borde y la sombra para rutas seleccionadas también
         routeLayers.outline.setStyle({
-          weight: 12, // Reducido para mantener proporciones
-          opacity: 0.9,
+          opacity: 0, // Invisible
           className: 'route-outline selected orizo-style'
         });
         
         routeLayers.shadow.setStyle({
-          weight: 16,
-          opacity: 0.4,
+          opacity: 0, // Invisible
           className: 'route-shadow selected orizo-style'
         });
         
