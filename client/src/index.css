@@ -211,3 +211,20 @@
 .btn-variant-orizo {
   @apply bg-[#0056A4] text-white hover:bg-[#004385] font-medium;
 }
+
+/* Estilos del formulario de Orizo.fr */
+.orizo-select-trigger {
+  @apply border-2 border-[#0056A4] rounded-lg;
+}
+
+.orizo-date-button {
+  @apply border-2 border-[#0056A4] rounded-lg text-[#0056A4];
+}
+
+.orizo-calculate-button {
+  @apply bg-[#0056A4] text-white hover:bg-[#004385] font-medium;
+}
+
+.orizo-card-shadow {
+  box-shadow: 0 4px 12px rgba(0, 86, 164, 0.15);
+}
