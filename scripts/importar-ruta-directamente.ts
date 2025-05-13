@@ -1,36 +1,23 @@
 /**
- * Script para importar una ruta alternativa (34-44) que tiene estructura diferente
+ * Script para importar una ruta alternativa (35-44) que tiene estructura diferente
  * Uso: tsx scripts/importar-ruta-directamente.ts <numero_ruta> <numero_alternativa>
  */
-
 import * as fs from 'fs';
 import * as path from 'path';
+import { db } from '../server/db';
+import { busRoutes, busStops } from '../shared/schema';
+import { storage } from '../server/storage';
+import * as util from 'util';
 import { exec } from 'child_process';
-import { promisify } from 'util';
 
 // Promisificar exec para usar con async/await
-const execAsync = promisify(exec);
+const execAsync = util.promisify(exec);
 
-// Parámetros de línea de comandos
-const args = process.argv.slice(2);
-if (args.length < 2) {
-  console.error('Uso: tsx scripts/importar-ruta-directamente.ts <numero_ruta> <numero_alternativa>');
-  process.exit(1);
-}
-
-const routeId = parseInt(args[0], 10);
-const alternateNum = parseInt(args[1], 10);
-
-if (isNaN(routeId) || isNaN(alternateNum) || alternateNum < 1 || alternateNum > 2) {
-  console.error('Parámetros inválidos. El número de alternativa debe ser 1 o 2.');
-  process.exit(1);
-}
-
-// Constantes y directorios
-const MAPATON_DIR = './tmp/mapaton-extract/shapefiles-mapton-ciudadano';
+// Constantes para directorios y archivos
+const SHAPEFILES_DIR = './tmp/mapaton-extract/shapefiles-mapton-ciudadano';
 const PROCESSED_DIR = './tmp/processed';
 
-// Crear directorios si no existen
+// Crear directorios de procesamiento si no existen
 if (!fs.existsSync(PROCESSED_DIR)) {
   fs.mkdirSync(PROCESSED_DIR, { recursive: true });
 }
@@ -44,281 +31,342 @@ const zoneColors: Record<string, string> = {
   'centro': '#F97316' // orange-500
 };
 
-// Determinar zona por ID de ruta
+/**
+ * Determina la zona de una ruta según su ID
+ */
 function determineZone(routeId: number): string {
-  let zone = 'centro';
-  if (routeId >= 1 && routeId <= 30) zone = 'norte';
-  if (routeId >= 31 && routeId <= 60) zone = 'sur';
-  if (routeId >= 61 && routeId <= 90) zone = 'este';
-  if (routeId >= 91 && routeId <= 120) zone = 'oeste';
-  return zone;
+  if (routeId <= 20) {
+    return 'norte';
+  } else if (routeId <= 40) {
+    return 'sur';
+  } else if (routeId <= 60) {
+    return 'este';
+  } else if (routeId <= 80) {
+    return 'oeste';
+  } else {
+    return 'centro';
+  }
 }
 
 /**
  * Función principal para importar la ruta
  */
 async function importarRutaAlternativa() {
-  console.log(`Importando ruta ${routeId} (alternativa ${alternateNum})...`);
-  
   try {
-    // 1. Verificar que existan los directorios
-    const routeDir = path.join(MAPATON_DIR, `${routeId}_circuito`);
-    const routeSubDir = path.join(routeDir, `ruta_${alternateNum}`);
+    // Obtener parámetros de línea de comandos
+    const routeId = parseInt(process.argv[2], 10);
+    const alternateNum = parseInt(process.argv[3], 10);
     
-    if (!fs.existsSync(routeDir)) {
-      console.error(`Error: No existe el directorio para la ruta ${routeId}`);
+    if (isNaN(routeId) || isNaN(alternateNum) || alternateNum < 1 || alternateNum > 2) {
+      console.error('Uso: tsx scripts/importar-ruta-directamente.ts <numero_ruta> <numero_alternativa>');
+      console.error('Donde <numero_alternativa> es 1 o 2');
       process.exit(1);
     }
     
-    if (!fs.existsSync(routeSubDir)) {
-      console.error(`Error: No existe el subdirectorio ruta_${alternateNum} para la ruta ${routeId}`);
-      process.exit(1);
-    }
+    console.log(`Procesando ruta ${routeId} alternativa ${alternateNum}...`);
     
-    // 2. Verificar que exista el archivo route.zip
-    const routeZipPath = path.join(routeSubDir, 'route.zip');
-    if (!fs.existsSync(routeZipPath)) {
-      console.error(`Error: No existe el archivo route.zip para la ruta ${routeId} (alternativa ${alternateNum})`);
-      process.exit(1);
-    }
-    
-    // 3. Preparar directorios de procesamiento
-    const tempDir = path.join(PROCESSED_DIR, `route_${routeId}_alt${alternateNum}`);
-    const routeShpDir = path.join(tempDir, 'route');
-    
-    if (fs.existsSync(tempDir)) {
-      fs.rmSync(tempDir, { recursive: true, force: true });
-    }
-    
-    fs.mkdirSync(tempDir, { recursive: true });
-    fs.mkdirSync(routeShpDir, { recursive: true });
-    
-    // 4. Extraer el archivo route.zip
-    console.log('Extrayendo archivo route.zip...');
-    await execAsync(`unzip -o ${routeZipPath} -d ${routeShpDir}`);
-    
-    // 5. Buscar archivo .shp para la ruta
-    const routeShpFiles = fs.readdirSync(routeShpDir)
-      .filter(file => file.endsWith('.shp'))
-      .map(file => path.join(routeShpDir, file));
-      
-    if (routeShpFiles.length === 0) {
-      console.error(`Error: No se encontraron archivos .shp en ${routeShpDir}`);
-      process.exit(1);
-    }
-    
-    // 6. Convertir shapefile a GeoJSON
-    const routeShpFile = routeShpFiles[0];
-    const routeGeoJsonFile = path.join(tempDir, 'route.geojson');
-    
-    console.log('Convirtiendo shapefile a GeoJSON...');
-    await execAsync(`ogr2ogr -f GeoJSON ${routeGeoJsonFile} ${routeShpFile}`);
-    
-    if (!fs.existsSync(routeGeoJsonFile)) {
-      console.error(`Error al convertir shapefile a GeoJSON: ${routeShpFile}`);
-      process.exit(1);
-    }
-    
-    // 7. Leer archivo GeoJSON y extraer datos
-    console.log('Leyendo GeoJSON...');
-    const routeGeoJson = JSON.parse(fs.readFileSync(routeGeoJsonFile, 'utf8'));
-    
-    if (!routeGeoJson || !routeGeoJson.features || routeGeoJson.features.length === 0) {
-      console.error(`Error: No se encontraron características en el GeoJSON de la ruta ${routeId}`);
-      process.exit(1);
-    }
-    
-    // 8. Extraer coordenadas
-    const routeFeature = routeGeoJson.features[0];
-    const routeCoordinates = routeFeature.geometry?.coordinates || [];
-    
-    if (!routeCoordinates || routeCoordinates.length === 0) {
-      console.error(`Error: No se encontraron coordenadas en la ruta ${routeId}`);
-      process.exit(1);
-    }
-    
-    console.log(`Encontradas ${routeCoordinates.length} coordenadas para la ruta.`);
-    
-    // 9. Determinar zona y propiedades
-    const zone = determineZone(routeId);
-    const color = zoneColors[zone];
-    
-    // 10. Generar nombres y propiedades
-    const routeIdWithOffset = alternateNum === 1 ? routeId : routeId + 100;
+    // Verificar si la ruta ya existe
     const routeName = `Ruta ${routeId} (Alternativa ${alternateNum})`;
-    const shortName = `R${routeId}A${alternateNum}`;
+    const existingRoutes = await db.query.busRoutes.findMany({
+      where: (busRoutes, { eq }) => eq(busRoutes.name, routeName)
+    });
     
-    // 11. Verificar si ya existe
-    console.log('Verificando si la ruta ya existe...');
-    const checkSql = `
-      SELECT COUNT(*) as count FROM bus_routes WHERE name = '${routeName}';
-    `;
+    if (existingRoutes.length > 0) {
+      console.log(`La ruta ${routeName} ya existe en la base de datos, omitiendo...`);
+      return { success: true, route: existingRoutes[0] };
+    }
+    
+    // Construir ruta al directorio
+    const circuitDir = path.join(SHAPEFILES_DIR, `${routeId}_circuito`);
+    const routeDir = path.join(SHAPEFILES_DIR, `${routeId}_ruta`);
+    
+    let baseDir: string;
+    
+    // Determinar directorio base
+    if (fs.existsSync(circuitDir)) {
+      baseDir = circuitDir;
+    } else if (fs.existsSync(routeDir)) {
+      baseDir = routeDir;
+    } else {
+      throw new Error(`No se encontró directorio para la ruta ${routeId}`);
+    }
+    
+    // Determinar ruta al archivo de ruta
+    const alternatePath = path.join(baseDir, `ruta_${alternateNum}`);
+    const routeZipPath = path.join(alternatePath, 'route.zip');
+    
+    if (!fs.existsSync(alternatePath)) {
+      throw new Error(`No se encontró directorio ruta_${alternateNum} para la ruta ${routeId}`);
+    }
+    
+    if (!fs.existsSync(routeZipPath)) {
+      throw new Error(`No se encontró archivo route.zip en la ruta ${routeId}/ruta_${alternateNum}`);
+    }
+    
+    // Crear directorios temporales para extracción
+    const tmpDir = path.join(PROCESSED_DIR, `route_${routeId}_alt${alternateNum}`);
+    if (!fs.existsSync(tmpDir)) {
+      fs.mkdirSync(tmpDir, { recursive: true });
+    }
+    
+    const routeShpDir = path.join(tmpDir, 'route');
+    if (!fs.existsSync(routeShpDir)) {
+      fs.mkdirSync(routeShpDir, { recursive: true });
+    }
+    
+    const stopsShpDir = path.join(tmpDir, 'stops');
+    if (!fs.existsSync(stopsShpDir)) {
+      fs.mkdirSync(stopsShpDir, { recursive: true });
+    }
     
     try {
-      const { stdout: checkResult } = await execAsync(`psql "$DATABASE_URL" -c "${checkSql}"`);
-      const match = checkResult.match(/\((\d+) row/);
+      // Extraer archivo de ruta
+      await execAsync(`unzip -o "${routeZipPath}" -d "${routeShpDir}"`);
       
-      if (match) {
-        const count = parseInt(match[1], 10);
-        if (count > 0) {
-          // Esta vez vamos a forzar la importación aunque exista
-          console.log(`La ruta ${routeName} parece existir en la base de datos, pero verificaremos...`);
-          
-          // Verificación adicional para asegurarnos que realmente existe
-          const verifySql = `
-            SELECT id FROM bus_routes WHERE name = '${routeName}';
-          `;
-          
-          try {
-            const { stdout: verifyResult } = await execAsync(`psql "$DATABASE_URL" -c "${verifySql}"`);
-            if (verifyResult.includes('(0 rows)')) {
-              console.log(`La ruta ${routeName} no existe realmente. Procediendo con la importación...`);
-            } else {
-              console.log(`La ruta ${routeName} ya existe en la base de datos, omitiendo...`);
-              // Limpiar directorio temporal
-              fs.rmSync(tempDir, { recursive: true, force: true });
-              process.exit(0);
-            }
-          } catch (error) {
-            console.log(`Error verificando existencia, asumimos que no existe: ${(error as Error).message}`);
-          }
-        }
+      // Buscar archivo .shp para la ruta
+      const routeShpFiles = findFiles(routeShpDir, '.shp');
+      if (routeShpFiles.length === 0) {
+        throw new Error(`No se encontraron archivos .shp en ${routeShpDir}`);
       }
-    } catch (error) {
-      console.error('Error verificando existencia de ruta:', (error as Error).message);
-      process.exit(1);
-    }
-    
-    // 12. Crear objeto GeoJSON para la ruta
-    const finalRouteGeoJSON = {
-      type: 'Feature',
-      properties: {
-        id: routeIdWithOffset,
+      
+      // Convertir shapefile de ruta a GeoJSON
+      const routeShpFile = routeShpFiles[0];
+      const routeGeoJsonFile = path.join(tmpDir, 'route.geojson');
+      
+      await execAsync(`ogr2ogr -f GeoJSON "${routeGeoJsonFile}" "${routeShpFile}"`);
+      
+      if (!fs.existsSync(routeGeoJsonFile)) {
+        throw new Error(`Error al convertir shapefile a GeoJSON: ${routeShpFile}`);
+      }
+      
+      // Leer archivo GeoJSON y extraer datos
+      const routeGeoJson = JSON.parse(fs.readFileSync(routeGeoJsonFile, 'utf8'));
+      
+      if (!routeGeoJson || !routeGeoJson.features || routeGeoJson.features.length === 0) {
+        throw new Error(`No se encontraron características en el GeoJSON de la ruta`);
+      }
+      
+      // Usar primera característica como ruta
+      const routeFeature = routeGeoJson.features[0];
+      const routeCoordinates = routeFeature.geometry?.coordinates || [];
+      
+      if (!routeCoordinates || routeCoordinates.length === 0) {
+        throw new Error(`No se encontraron coordenadas en la ruta`);
+      }
+      
+      // Determinar zona y crear nombre
+      const zone = determineZone(routeId);
+      const routePrefix = `Ruta ${routeId}`;
+      const alternateLabel = `Alternativa ${alternateNum}`;
+      
+      // Generar nombre completo de la ruta
+      const routeName = `${routePrefix} (${alternateLabel})`;
+      const shortName = `R${routeId}-${alternateNum}`;
+      const color = zoneColors[zone];
+      
+      // Crear objeto GeoJSON para la ruta
+      const finalRouteGeoJSON = {
+        type: "Feature",
+        properties: {
+          id: routeId * 10 + alternateNum,
+          name: routeName,
+          shortName: shortName,
+          color: color
+        },
+        geometry: {
+          type: "LineString",
+          coordinates: routeCoordinates
+        }
+      };
+      
+      // Generar datos complementarios
+      const approximateTime = approximateTimeFromPoints(routeCoordinates.length);
+      const frequency = getRandomFrequency();
+      
+      // Crear ruta en la base de datos
+      const route = await storage.createRoute({
         name: routeName,
         shortName: shortName,
-        color: color
-      },
-      geometry: {
-        type: 'LineString',
-        coordinates: routeCoordinates
-      }
-    };
-    
-    // 13. Generar datos complementarios
-    const approximateTime = routeCoordinates.length < 50 ? '15-20 min' :
-                           routeCoordinates.length < 100 ? '20-30 min' :
-                           routeCoordinates.length < 200 ? '30-45 min' :
-                           routeCoordinates.length < 300 ? '45-60 min' : '60+ min';
-                           
-    const frequencies = ['10-15 min', '15-20 min', '20-30 min', '30-40 min', '15-25 min', '20-25 min'];
-    const frequency = frequencies[Math.floor(Math.random() * frequencies.length)];
-    
-    // 14. Crear ruta en la base de datos directamente con SQL
-    console.log('Creando ruta en la base de datos...');
-    
-    // Escapar comillas simples en la cadena JSON
-    const geoJSONStr = JSON.stringify(finalRouteGeoJSON).replace(/'/g, "''");
-    
-    const insertRouteSql = `
-      INSERT INTO bus_routes (name, short_name, color, frequency, schedule_start, schedule_end, 
-                             stops_count, approximate_time, zone, popular, geo_json)
-      VALUES ('${routeName}', '${shortName}', '${color}', '${frequency}', '05:30 AM', 
-              '22:30 PM', 0, '${approximateTime}', '${zone}', TRUE, '${geoJSONStr}')
-      RETURNING id;
-    `;
-    
-    let newRouteId: number | undefined;
-    try {
-      const { stdout: insertResult } = await execAsync(`psql "$DATABASE_URL" -c "${insertRouteSql}"`);
-      const idMatch = insertResult.match(/\(1 row\)[\s\S]*?(\d+)/);
+        color: color,
+        frequency: frequency,
+        scheduleStart: '05:30 AM',
+        scheduleEnd: '22:30 PM',
+        stopsCount: 0, // Se actualizará después
+        approximateTime: approximateTime,
+        zone: zone,
+        popular: true,
+        geoJSON: finalRouteGeoJSON
+      });
       
-      if (idMatch) {
-        newRouteId = parseInt(idMatch[1], 10);
-        console.log(`✅ Ruta creada: ${routeName} (ID: ${newRouteId}) con ${routeCoordinates.length} puntos`);
-      } else {
-        console.error('No se pudo obtener el ID de la ruta creada');
-        process.exit(1);
+      console.log(`✅ Ruta creada: ${routeName} (ID: ${route.id}) con ${routeCoordinates.length} puntos`);
+      
+      // Procesar paradas si existen
+      let stopsCount = 0;
+      const stopsZipPath = path.join(alternatePath, 'stops.zip');
+      
+      try {
+        if (fs.existsSync(stopsZipPath)) {
+          // Extraer archivo de paradas
+          await execAsync(`unzip -o "${stopsZipPath}" -d "${stopsShpDir}"`);
+          
+          // Buscar archivo .shp para las paradas
+          const stopsShpFiles = findFiles(stopsShpDir, '.shp');
+          
+          if (stopsShpFiles.length > 0) {
+            // Convertir shapefile de paradas a GeoJSON
+            const stopsShpFile = stopsShpFiles[0];
+            const stopsGeoJsonFile = path.join(tmpDir, 'stops.geojson');
+            
+            await execAsync(`ogr2ogr -f GeoJSON "${stopsGeoJsonFile}" "${stopsShpFile}"`);
+            
+            if (fs.existsSync(stopsGeoJsonFile)) {
+              // Leer archivo GeoJSON y extraer datos
+              const stopsGeoJson = JSON.parse(fs.readFileSync(stopsGeoJsonFile, 'utf8'));
+              
+              if (stopsGeoJson && stopsGeoJson.features && stopsGeoJson.features.length > 0) {
+                // Crear paradas
+                stopsCount = await createStopsFromGeoJSON(route.id, stopsGeoJson);
+                console.log(`✅ Creadas ${stopsCount} paradas para la ruta ${route.id}`);
+              }
+            }
+          }
+        } else {
+          console.log(`No se encontró archivo stops.zip para ruta ${routeId} alternativa ${alternateNum}`);
+        }
+      } catch (error) {
+        console.error(`Error procesando paradas para ruta ${routeId} alternativa ${alternateNum}:`, error);
+        // Continuamos aunque haya error en las paradas
       }
+      
+      return { success: true, route, stopsCount };
     } catch (error) {
-      console.error('Error creando ruta:', (error as Error).message);
-      process.exit(1);
+      console.error(`Error procesando ruta ${routeId} alternativa ${alternateNum}:`, error);
+      throw error;
     }
-    
-    if (!newRouteId) {
-      console.error('No se pudo obtener el ID de la ruta creada');
-      process.exit(1);
-    }
-    
-    // 15. Generar paradas automáticamente
-    console.log('Generando paradas automáticas...');
-    
-    // Determinar número óptimo de paradas según longitud de la ruta
-    const totalStops = Math.min(
-      Math.max(10, Math.floor(routeCoordinates.length / 50)),
-      40 // máximo 40 paradas para evitar demasiada densidad
-    );
-    
-    let stopsCount = 0;
-    let stopsInsertSql = 'INSERT INTO bus_stops (route_id, name, latitude, longitude, is_terminal, terminal_type) VALUES\n';
-    
-    // Terminal origen
-    console.log('Creando terminal origen...');
-    const firstCoord = routeCoordinates[0];
-    stopsInsertSql += `(${newRouteId}, 'Terminal Origen (R${routeId})', '${firstCoord[1]}', '${firstCoord[0]}', TRUE, 'first')`;
-    stopsCount++;
-    
-    // Paradas intermedias
-    console.log(`Creando ${totalStops - 2} paradas intermedias...`);
-    const step = Math.floor(routeCoordinates.length / (totalStops - 1));
-    for (let i = 1; i < totalStops - 1; i++) {
-      const index = i * step;
-      if (index < routeCoordinates.length) {
-        const coord = routeCoordinates[index];
-        stopsInsertSql += `,\n(${newRouteId}, 'Parada ${i}', '${coord[1]}', '${coord[0]}', FALSE, '')`;
-        stopsCount++;
-      }
-    }
-    
-    // Terminal destino
-    console.log('Creando terminal destino...');
-    const lastCoord = routeCoordinates[routeCoordinates.length - 1];
-    stopsInsertSql += `,\n(${newRouteId}, 'Terminal Destino (R${routeId})', '${lastCoord[1]}', '${lastCoord[0]}', TRUE, 'last')`;
-    stopsCount++;
-    
-    stopsInsertSql += ';';
-    
-    try {
-      await execAsync(`psql "$DATABASE_URL" -c "${stopsInsertSql}"`);
-      console.log(`✅ Creadas ${stopsCount} paradas para la ruta ${routeId}`);
-    } catch (error) {
-      console.error('Error creando paradas:', (error as Error).message);
-      process.exit(1);
-    }
-    
-    // Actualizar contador de paradas en la ruta
-    console.log(`Actualizando contador de paradas a ${stopsCount}...`);
-    const updateStopsCountSql = `
-      UPDATE bus_routes SET stops_count = ${stopsCount} WHERE id = ${newRouteId};
-    `;
-    
-    try {
-      await execAsync(`psql "$DATABASE_URL" -c "${updateStopsCountSql}"`);
-    } catch (error) {
-      console.error('Error actualizando contador de paradas:', (error as Error).message);
-    }
-    
-    // 16. Limpiar directorio temporal
-    console.log('Limpiando directorios temporales...');
-    fs.rmSync(tempDir, { recursive: true, force: true });
-    
-    console.log(`Importación de la ruta ${routeId} (alternativa ${alternateNum}) completada con éxito.`);
-    process.exit(0);
-    
   } catch (error) {
-    console.error('Error al importar ruta:', error);
-    process.exit(1);
+    console.error('Error en la importación:', error);
+    return { success: false, error };
   }
 }
 
+// Función para crear paradas desde GeoJSON
+async function createStopsFromGeoJSON(routeId: number, stopsGeoJson: any): Promise<number> {
+  try {
+    const features = stopsGeoJson.features || [];
+    if (features.length === 0) {
+      return 0;
+    }
+    
+    let count = 0;
+    
+    // Primera parada es terminal origen
+    const firstStop = features[0];
+    const firstCoord = firstStop.geometry.coordinates;
+    
+    await storage.createStop({
+      routeId: routeId,
+      name: `Terminal Origen`,
+      latitude: firstCoord[1].toString(),
+      longitude: firstCoord[0].toString(),
+      isTerminal: true,
+      terminalType: 'first'
+    });
+    count++;
+    
+    // Paradas intermedias
+    for (let i = 1; i < features.length - 1; i++) {
+      const stop = features[i];
+      const coord = stop.geometry.coordinates;
+      
+      await storage.createStop({
+        routeId: routeId,
+        name: `Parada ${i}`,
+        latitude: coord[1].toString(),
+        longitude: coord[0].toString(),
+        isTerminal: false,
+        terminalType: 'middle'
+      });
+      count++;
+    }
+    
+    // Última parada es terminal destino
+    if (features.length > 1) {
+      const lastStop = features[features.length - 1];
+      const lastCoord = lastStop.geometry.coordinates;
+      
+      await storage.createStop({
+        routeId: routeId,
+        name: `Terminal Destino`,
+        latitude: lastCoord[1].toString(),
+        longitude: lastCoord[0].toString(),
+        isTerminal: true,
+        terminalType: 'last'
+      });
+      count++;
+    }
+    
+    return count;
+  } catch (error) {
+    console.error(`Error creando paradas:`, error);
+    return 0;
+  }
+}
+
+// Función para buscar archivos en un directorio
+function findFiles(dir: string, extension: string): string[] {
+  try {
+    if (!fs.existsSync(dir)) {
+      return [];
+    }
+    
+    const files = fs.readdirSync(dir);
+    return files
+      .filter(file => file.toLowerCase().endsWith(extension.toLowerCase()))
+      .map(file => path.join(dir, file));
+  } catch (error) {
+    console.error(`Error buscando archivos en ${dir}:`, error);
+    return [];
+  }
+}
+
+// Genera un tiempo aproximado basado en la cantidad de puntos
+function approximateTimeFromPoints(points: number): string {
+  const minutes = Math.max(10, Math.round(points / 10));
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  
+  if (hours > 0) {
+    return `${hours}h ${remainingMinutes}min`;
+  } else {
+    return `${minutes}min`;
+  }
+}
+
+// Genera una frecuencia aleatoria
+function getRandomFrequency(): string {
+  const frequencies = [
+    '5-10 min',
+    '10-15 min',
+    '15-20 min',
+    '20-30 min'
+  ];
+  
+  const randomIndex = Math.floor(Math.random() * frequencies.length);
+  return frequencies[randomIndex];
+}
+
 // Ejecutar función principal
-importarRutaAlternativa();
+importarRutaAlternativa()
+  .then(result => {
+    if (result.success) {
+      console.log('Importación completada con éxito');
+      process.exit(0);
+    } else {
+      console.error('Error en la importación:', result.error);
+      process.exit(1);
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    process.exit(1);
+  });
