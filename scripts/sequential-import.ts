@@ -371,15 +371,15 @@ async function processRouteFromShapefile(
               console.log(`✅ Creadas ${stopsCount} paradas para la ruta ${route.id}`);
             } else {
               console.log(`No se encontraron paradas en el GeoJSON, generando automáticamente...`);
-              stopsCount = // await generateAutomaticStops(route.id, routeCoordinates);
+              stopsCount = await generateAutomaticStops(route.id, routeCoordinates);
             }
           } else {
             console.log(`Error al convertir shapefile de paradas a GeoJSON, generando automáticamente...`);
-            stopsCount = // await generateAutomaticStops(route.id, routeCoordinates);
+            stopsCount = await generateAutomaticStops(route.id, routeCoordinates);
           }
         } else {
           console.log(`No se encontraron archivos .shp para paradas, generando automáticamente...`);
-          stopsCount = // await generateAutomaticStops(route.id, routeCoordinates);
+          stopsCount = await generateAutomaticStops(route.id, routeCoordinates);
         }
       } else {
         console.log(`No se encontró archivo stops.zip, generando paradas automáticamente...`);
