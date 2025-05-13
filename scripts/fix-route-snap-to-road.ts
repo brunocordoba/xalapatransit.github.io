@@ -1,9 +1,13 @@
 import { drizzle } from 'drizzle-orm/neon-serverless';
 import { eq } from 'drizzle-orm';
-import { Pool } from '@neondatabase/serverless';
+import { Pool, neonConfig } from '@neondatabase/serverless';
 import fetch from 'node-fetch';
 import fs from 'fs/promises';
 import path from 'path';
+import ws from 'ws';
+
+// Configurar WebSocket para Neon
+neonConfig.webSocketConstructor = ws;
 
 // Importar schema
 import { busRoutes, busStops } from '../shared/schema';

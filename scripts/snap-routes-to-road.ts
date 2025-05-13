@@ -183,7 +183,7 @@ async function snapRouteToRoad(routeId: number): Promise<boolean> {
     
     // Guardar resultado
     if (snappedCoordinates.length > 0) {
-      const newGeometry = {
+      const newGeoJSON = {
         type: "LineString",
         coordinates: snappedCoordinates
       };
@@ -191,8 +191,7 @@ async function snapRouteToRoad(routeId: number): Promise<boolean> {
       // Actualizar en la base de datos
       await db.update(busRoutes)
         .set({ 
-          geometry: JSON.stringify(newGeometry),
-          updatedAt: new Date()
+          geoJSON: JSON.stringify(newGeoJSON)
         })
         .where(eq(busRoutes.id, routeId));
       
