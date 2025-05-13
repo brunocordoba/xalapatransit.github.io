@@ -216,7 +216,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .sort((a, b) => a.distance - b.distance);  // Ordenar por cercanía
       
       // Obtener información de las rutas que pasan por estas paradas
-      const nearbyRouteIds = [...new Set(nearbyStops.map(stop => stop.routeId))];
+      const nearbyRouteIdsSet = new Set(nearbyStops.map(stop => stop.routeId));
+      const nearbyRouteIds = Array.from(nearbyRouteIdsSet);
       const routeDetails = await Promise.all(
         nearbyRouteIds.map(async (routeId) => {
           const route = await storage.getRoute(routeId);

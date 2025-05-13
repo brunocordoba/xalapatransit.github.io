@@ -360,13 +360,13 @@ const RoutePlanner: React.FC = () => {
                 routes={routes || []} 
                 selectedRoutes={routeResults ? routeResults.flatMap(route => 
                   route.steps
-                    .filter(step => step.type === 'bus')
-                    .map(step => {
+                    .filter((step: any) => step.type === 'bus')
+                    .map((step: any) => {
                       // Encontrar el ID de la ruta basado en el nombre de la ruta
                       const routeInfo = routes?.find(r => r.name === step.routeName);
                       return routeInfo?.id || 0;
                     })
-                    .filter(id => id !== 0)
+                    .filter((id: number) => id !== 0)
                 ) : []}
               />
             </CardContent>

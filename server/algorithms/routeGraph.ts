@@ -118,7 +118,7 @@ export function buildRouteGraph(stops: BusStop[], routes: BusRoute[]): RouteGrap
       .sort((a, b) => {
         // Si ambos tienen order, usamos ese campo
         if (a.order !== undefined && b.order !== undefined) {
-          return a.order - b.order;
+          return (a.order || 0) - (b.order || 0);
         }
         // Si no, ordenamos por ID como respaldo
         return a.id - b.id;
@@ -234,7 +234,10 @@ export function findNearestStop(
   let nearestNode: BusStopNode | null = null;
   let minDistance = Infinity;
   
-  for (const node of graph.nodes.values()) {
+  // Convertir a array para evitar problemas de iteración
+  const nodesArray = Array.from(graph.nodes.values());
+  
+  for (const node of nodesArray) {
     const distance = haversineDistance(
       latitude,
       longitude,
