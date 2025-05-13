@@ -13,11 +13,11 @@
 --card-foreground: 20 14.3% 4.1%;
 --border: 20 5.9% 90%;
 --input: 20 5.9% 90%;
---primary: 207 90% 54%;
---primary-foreground: 211 100% 99%;
+--primary: 209 100% 37%; /* #0056A4 Azul de Orizo.fr */
+--primary-foreground: 0 0% 100%;
 --secondary: 60 4.8% 95.9%;
 --secondary-foreground: 24 9.8% 10%;
---accent: 60 4.8% 95.9%;
+--accent: 48 96% 53%; /* #F9CD00 Amarillo de Orizo.fr */
 --accent-foreground: 24 9.8% 10%;
 --destructive: 0 84.2% 60.2%;
 --destructive-foreground: 60 9.1% 97.8%;
@@ -35,11 +35,11 @@
 --card-foreground: 0 0% 98%;
 --border: 240 3.7% 15.9%;
 --input: 240 3.7% 15.9%;
---primary: 207 90% 54%;
---primary-foreground: 211 100% 99%;
+--primary: 209 100% 37%; /* #0056A4 Azul de Orizo.fr */
+--primary-foreground: 0 0% 100%;
 --secondary: 240 3.7% 15.9%;
 --secondary-foreground: 0 0% 98%;
---accent: 240 3.7% 15.9%;
+--accent: 48 96% 53%; /* #F9CD00 Amarillo de Orizo.fr */
 --accent-foreground: 0 0% 98%;
 --destructive: 0 62.8% 30.6%;
 --destructive-foreground: 0 0% 98%;
@@ -55,6 +55,35 @@
   body {
     @apply font-sans antialiased bg-background text-foreground;
   }
+}
+
+/* Estilos específicos de Orizo.fr */
+.orizo-itinerary-card {
+  border-left: 4px solid #0056A4;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.orizo-route-badge {
+  background-color: #0056A4;
+  color: white;
+  border-radius: 50%;
+  font-weight: bold;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  height: 2rem;
+}
+
+.orizo-walk-badge {
+  background-color: #F9CD00;
+  color: #333;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
 }
 
 /* Estilos para las rutas de autobús similar a Mapaton.org */

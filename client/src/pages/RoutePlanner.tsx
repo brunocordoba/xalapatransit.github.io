@@ -155,7 +155,7 @@ const RoutePlanner: React.FC = () => {
                               className="w-full justify-start text-left font-normal border-2"
                             >
                               <CalendarIcon className="mr-2 h-4 w-4" />
-                              {date ? format(date, "PPP", { locale: esES }) : <span>Seleccionar fecha</span>}
+                              {date ? format(date, "PPP", { locale: es }) : <span>Seleccionar fecha</span>}
                             </Button>
                           </PopoverTrigger>
                           <PopoverContent className="w-auto p-0" align="start">
@@ -207,7 +207,7 @@ const RoutePlanner: React.FC = () => {
                               className="w-full justify-start text-left font-normal border-2"
                             >
                               <CalendarIcon className="mr-2 h-4 w-4" />
-                              {date ? format(date, "PPP", { locale: esES }) : <span>Seleccionar fecha</span>}
+                              {date ? format(date, "PPP", { locale: es }) : <span>Seleccionar fecha</span>}
                             </Button>
                           </PopoverTrigger>
                           <PopoverContent className="w-auto p-0" align="start">
@@ -254,7 +254,8 @@ const RoutePlanner: React.FC = () => {
                 <Button 
                   onClick={handleCalculateRoute}
                   disabled={!startLocation || !endLocation || isCalculating}
-                  className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3"
+                  variant="orizo"
+                  className="w-full py-3 text-base"
                 >
                   {isCalculating ? "Calculando..." : "Calcular Ruta"}
                 </Button>
@@ -268,31 +269,31 @@ const RoutePlanner: React.FC = () => {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {routeResults.map((route) => (
-                    <Card key={route.id} className="border-2 hover:border-primary cursor-pointer">
+                    <Card key={route.id} className="orizo-itinerary-card hover:border-primary cursor-pointer">
                       <CardHeader className="pb-2 pt-4">
                         <div className="flex justify-between items-center">
                           <div className="text-sm text-muted-foreground">
                             Salida: <span className="font-bold">{route.startTime}</span>
                           </div>
-                          <div className="font-bold text-primary">{route.duration}</div>
+                          <div className="font-bold text-primary text-lg">{route.duration}</div>
                           <div className="text-sm text-muted-foreground">
                             Llegada: <span className="font-bold">{route.endTime}</span>
                           </div>
                         </div>
                       </CardHeader>
                       <CardContent>
-                        <div className="space-y-2">
+                        <div className="space-y-4">
                           {route.steps.map((step: any, index: number) => (
                             <div key={index} className="flex items-start">
                               {step.type === 'walk' ? (
-                                <div className="mr-2 rounded-full bg-gray-200 p-1">
+                                <div className="orizo-walk-badge mr-3">
                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                                   </svg>
                                 </div>
                               ) : (
-                                <div className="mr-2 rounded-full bg-primary text-white flex items-center justify-center p-1 min-w-[1.5rem] h-6">
-                                  <span className="text-xs font-bold">{step.routeNumber}</span>
+                                <div className="orizo-route-badge mr-3">
+                                  <span className="text-sm font-bold">{step.routeNumber}</span>
                                 </div>
                               )}
                               <div className="flex-1">
@@ -302,14 +303,14 @@ const RoutePlanner: React.FC = () => {
                                   ) : (
                                     <>
                                       <span className="font-bold">{step.routeName}</span>
-                                      <div className="text-xs text-muted-foreground">
+                                      <div className="text-xs text-muted-foreground mt-1">
                                         De {step.startStop} a {step.endStop}
                                       </div>
                                     </>
                                   )}
                                 </div>
                               </div>
-                              <div className="text-xs font-medium">{step.duration}</div>
+                              <div className="text-sm font-medium">{step.duration}</div>
                             </div>
                           ))}
                         </div>
@@ -326,7 +327,7 @@ const RoutePlanner: React.FC = () => {
         <div className="col-span-1 lg:col-span-2">
           <Card className="h-[calc(100vh-2rem)]">
             <CardContent className="p-0 h-full">
-              <MapView />
+              <MapView routes={[]} selectedRouteId={null} toggleSidebar={() => {}} isSidebarVisible={false} isMobile={false} onClearSelection={() => {}} onToggleAllRoutes={() => {}} showAllRoutes={false} />
             </CardContent>
           </Card>
         </div>
