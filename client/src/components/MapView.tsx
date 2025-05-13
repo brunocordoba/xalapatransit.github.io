@@ -33,6 +33,17 @@ function drawSingleRoute(
       return {} as any;
     }
     
+    // Debug: mostrar el tipo y estructura del objeto GeoJSON
+    console.log(`GeoJSON de la ruta ${route.id}:`, {
+      type: typeof geoJSON,
+      isArray: Array.isArray(geoJSON),
+      geoJSONType: geoJSON.type,
+      keys: Object.keys(geoJSON),
+      hasFeatures: geoJSON.features ? `Sí, ${geoJSON.features.length} features` : 'No',
+      featureType: geoJSON.features?.[0]?.type,
+      geometryType: geoJSON.features?.[0]?.geometry?.type
+    });
+    
     let coordinates: [number, number][] = [];
     
     // Manejar diferentes formatos de GeoJSON
