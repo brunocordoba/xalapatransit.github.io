@@ -10,8 +10,8 @@ const __dirname = path.dirname(__filename);
 // Importar schema
 import { busRoutes } from '../shared/schema';
 
-// Importar la función de ajuste de ruta del otro script
-import { snapRouteToRoad, pool } from './snap-single-route';
+// Importar las funciones y la conexión a la base de datos del otro script
+import { snapRouteToRoad, pool, db } from './snap-single-route';
 
 // Importar tipo BusRoute para TypeScript
 import { BusRoute } from '../shared/schema';
@@ -22,7 +22,7 @@ const DELAY_BETWEEN_ROUTES = 2000; // 2 segundos entre rutas
 const DELAY_BETWEEN_BATCHES = 10000; // 10 segundos entre lotes
 
 // Función para procesar todas las rutas en lotes
-async function processAllRoutes(startIndex = 0, endIndex?: number) {
+async function processAllRoutes(startRoute = 0, endRoute?: number) {
   try {
     // Obtener todas las rutas
     const routes = await db.select().from(busRoutes);
