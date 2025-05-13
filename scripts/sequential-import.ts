@@ -93,10 +93,14 @@ async function processAllRoutesSequentially() {
         try {
           console.log(`Procesando ${route.folder}...`);
           
-          // Determinar subprocesado (ida/vuelta o directa)
+          // Determinar subprocesado (ida/vuelta o directa/alterna)
           const hasIda = fs.existsSync(path.join(route.path, 'ida'));
           const hasVuelta = fs.existsSync(path.join(route.path, 'vuelta'));
           const hasDirect = fs.existsSync(path.join(route.path, 'route.zip'));
+          
+          // Verificar estructura alternativa (34-44 tienen ruta_1, ruta_2)
+          const hasAlternate = fs.existsSync(path.join(route.path, 'ruta_1')) || 
+                              fs.existsSync(path.join(route.path, 'ruta_2'));
           
           if (hasDirect) {
             // Procesar ruta directa
@@ -144,7 +148,43 @@ async function processAllRoutesSequentially() {
             }
           }
           
-          if (!hasDirect && !hasIda && !hasVuelta) {
+          if (hasAlternate) {
+            // Procesar estructura alternativa (ruta_1, ruta_2)
+            console.log(`Detectada estructura alternativa con subdirectorios ruta_X para la Ruta ${currentRouteId}`);
+            
+            // Procesar ruta_1 si existe
+            if (fs.existsSync(path.join(route.path, 'ruta_1'))) {
+              const { route: newRoute, stopsCount } = await processRouteFromShapefile(
+                currentRouteId,
+                path.join(route.path, 'ruta_1'),
+                'direct'
+              );
+              
+              if (newRoute) {
+                console.log(`Ruta ${currentRouteId} (alterna 1) importada con éxito. ID: ${newRoute.id}`);
+                successCount++;
+                totalStopsCount += stopsCount;
+              }
+            }
+            
+            // Procesar ruta_2 si existe
+            if (fs.existsSync(path.join(route.path, 'ruta_2'))) {
+              const { route: newRoute, stopsCount } = await processRouteFromShapefile(
+                currentRouteId,
+                path.join(route.path, 'ruta_2'),
+                'direct',
+                100 // Offset para rutas alternas 2
+              );
+              
+              if (newRoute) {
+                console.log(`Ruta ${currentRouteId} (alterna 2) importada con éxito. ID: ${newRoute.id}`);
+                successCount++;
+                totalStopsCount += stopsCount;
+              }
+            }
+          }
+          
+          if (!hasDirect && !hasIda && !hasVuelta && !hasAlternate) {
             console.log(`⚠️ Ruta ${currentRouteId} no tiene archivos de ruta válidos en ${route.folder}, omitiendo...`);
             errorCount++;
           }
