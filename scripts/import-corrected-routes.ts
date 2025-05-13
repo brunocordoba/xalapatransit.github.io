@@ -278,7 +278,7 @@ async function importAllCorrectedRoutes() {
   let importedStops = 0;
   
   // Limitar para pruebas
-  const MAX_ROUTES_TO_IMPORT = 5; // Para importación completa, cambiar a routesToProcess.length
+  const MAX_ROUTES_TO_IMPORT = 3; // Para importación completa, cambiar a routesToProcess.length
   
   // Ordenar rutas por ID
   routesToProcess.sort((a, b) => a.id - b.id);
@@ -458,10 +458,16 @@ async function importRouteWithStops(
     console.error(`Error general procesando ruta ${routeId}:`, error);
   }
   
-  // Actualizar contador de paradas en la ruta
-  await db.update(busRoutes)
-    .set({ stopsCount })
-    .where(eq(busRoutes.id, routeId));
+  // Actualizar contador de paradas en la ruta de manera explícita
+  try {
+    await db.update(busRoutes)
+      .set({ stopsCount })
+      .where(eq(busRoutes.id, routeId));
+    
+    console.log(`Actualizado contador de paradas para ruta ${routeId}: ${stopsCount} paradas`);
+  } catch (error) {
+    console.error(`Error al actualizar contador de paradas para ruta ${routeId}:`, error);
+  }
   
   return { stopsCount };
 }
