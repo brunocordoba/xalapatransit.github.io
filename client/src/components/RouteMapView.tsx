@@ -85,27 +85,28 @@ function drawSingleRoute(
       return {} as any;
     }
     
-    // Simplificar la geometría para mejor rendimiento
+    // Usar todas las coordenadas originales sin simplificar
     let simplifiedCoords = coordinates;
-    if (coordinates.length > 100) {
-      const step = Math.max(1, Math.floor(coordinates.length / 100));
-      simplifiedCoords = coordinates.filter((_, i) => i % step === 0 || i === 0 || i === coordinates.length - 1);
-    }
     
     // Convertir coordenadas a formato Leaflet [lat, lng]
+    // GeoJSON usa [lon, lat] pero Leaflet usa [lat, lon]
     const leafletCoords = simplifiedCoords.map(coord => {
-      if (typeof coord[0] === 'number' && typeof coord[1] === 'number') {
+      if (Array.isArray(coord) && coord.length >= 2 && 
+          typeof coord[0] === 'number' && typeof coord[1] === 'number') {
         return [coord[1], coord[0]] as [number, number];
+      } else {
+        console.warn(`Coordenada inválida encontrada:`, coord);
+        return [0, 0] as [number, number]; // Valor por defecto en caso de error
       }
-      return coord;
-    });
+    }).filter(coord => coord[0] !== 0 && coord[1] !== 0); // Filtrar coordenadas inválidas
     
-    // Estilos según si la ruta está seleccionada o no
-    const shadowWeight = isSelected ? 18 : 14;
-    const outlineWeight = isSelected ? 14 : 10;
-    const routeWeight = isSelected ? 10 : 6;
-    const shadowOpacity = isSelected ? 0.5 : 0.4;
-    const outlineOpacity = isSelected ? 0.9 : 0.8;
+    // Estilos según orizo.fr - líneas más delgadas sin bordes excesivos
+    // Rutas delgadas (4px) sin bordes como se solicitó
+    const shadowWeight = isSelected ? 6 : 5;
+    const outlineWeight = isSelected ? 5 : 4;
+    const routeWeight = isSelected ? 4 : 3;
+    const shadowOpacity = isSelected ? 0.2 : 0.1;
+    const outlineOpacity = isSelected ? 0.7 : 0.6;
     const routeOpacity = 1.0;
     const routeClassName = isSelected ? 'route-line selected' : 'route-line';
     

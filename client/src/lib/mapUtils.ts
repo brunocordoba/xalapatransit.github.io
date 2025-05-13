@@ -83,27 +83,27 @@ export function getBusStopIcon(isTerminal: boolean | null, color: string = '#fff
   // En caso de que isTerminal sea null, tratarlo como false
   const isActuallyTerminal = isTerminal === true;
   
-  // Tamaños según la imagen de referencia (círculos blancos uniformes)
-  const size = isActuallyTerminal ? 16 : 12;
+  // Tamaños según la solicitud de cliente - paradas más pequeñas
+  const size = isActuallyTerminal ? 12 : 8;
   
   // Color de relleno y borde para el estilo de la imagen de referencia
-  // Las paradas son círculos blancos con borde grueso del color de la ruta
+  // Las paradas son círculos blancos con borde del color de la ruta
   const fillColor = '#FFFFFF';
-  // La imagen muestra que las paradas tienen borde del color de la ruta 
+  // Borde del color de la ruta, según solicitud del cliente
   const borderColor = color; // Usar el color que viene como parámetro
-  const borderWidth = 2.5; // Borde menos grueso según solicitud
+  const borderWidth = 2; // Borde más delgado para paradas
   
   return L.divIcon({
     className: 'bus-stop-icon orizo-style',
     html: `
       <div 
-        class="${isActuallyTerminal ? 'terminal-stop' : 'regular-stop'} orizo-style rounded-full shadow-xl" 
+        class="${isActuallyTerminal ? 'terminal-stop' : 'regular-stop'} orizo-style rounded-full shadow-sm" 
         style="
           width: ${size}px; 
           height: ${size}px; 
           background-color: ${fillColor};
           border: ${borderWidth}px solid ${borderColor};
-          box-shadow: 0 0 4px rgba(0,0,0,0.5);
+          box-shadow: 0 0 2px rgba(0,0,0,0.4);
         "
       ></div>
     `,
@@ -420,10 +420,9 @@ export function addBusStops(
     // Asegurar que isTerminal es un booleano
     const isTerminal = stop.isTerminal === true;
     
-    // Según la imagen, las paradas tienen bordes del color de la ruta
-    // Usamos el color pasado como parámetro para el borde de las paradas
-    // Si es una parada terminal, podríamos usar un color más oscuro o el mismo
-    const stopColor = color || '#1E88E5';
+    // Según solicitud, las paradas deben tener bordes del color de la ruta, no amarillos
+    // Usamos el color exacto de la ruta para el borde de la parada
+    const stopColor = color || '#f44336'; // Rojo como color de respaldo si no se proporciona
     
     const icon = getBusStopIcon(isTerminal, stopColor);
     const lat = parseFloat(stop.latitude);
