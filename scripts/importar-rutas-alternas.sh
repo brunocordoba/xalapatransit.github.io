@@ -1,74 +1,76 @@
 #!/bin/bash
 
-# Script para importar rutas alternativas (34-44) una por una
-# Usa tsx directamente para ejecutar TypeScript
+# Script para importar rutas con estructura alterna (rutas 34-44)
+# Uso: bash scripts/importar-rutas-alternas.sh <inicio> <fin>
 
-# Recibe parámetros para el rango de rutas
 START_ROUTE=${1:-34}
 END_ROUTE=${2:-44}
 
-echo "Iniciando importación de rutas alternativas (estructura ruta_1/ruta_2) desde $START_ROUTE hasta $END_ROUTE"
+echo "=== IMPORTANDO RUTAS ALTERNAS DESDE $START_ROUTE HASTA $END_ROUTE ==="
+echo "Este script importará rutas con estructura alterna (ruta_1, ruta_2)"
 
-# Contadores
-RUTAS_IMPORTADAS=0
-RUTAS_FALLIDAS=0
+# Contador para seguimiento
+TOTAL_IMPORTED=0
+TOTAL_FAILED=0
 
-for RUTA in $(seq $START_ROUTE $END_ROUTE); do
+# Procesar cada ruta en el rango
+for ROUTE_ID in $(seq $START_ROUTE $END_ROUTE); do
   echo ""
   echo "=================================================="
-  echo "Procesando ruta $RUTA"
+  echo "Importando ruta alterna $ROUTE_ID..."
   echo "=================================================="
   
-  # Verificar si existe el directorio de la ruta
-  RUTA_DIR="./tmp/mapaton-extract/shapefiles-mapton-ciudadano/${RUTA}_circuito"
+  # Verificar existencia en base de datos
+  ROUTE_EXISTS=$(psql "$DATABASE_URL" -t -c "SELECT COUNT(*) FROM bus_routes WHERE name = 'Ruta $ROUTE_ID' OR name LIKE 'Ruta $ROUTE_ID (%)';" | tr -d '[:space:]')
   
-  if [ ! -d "$RUTA_DIR" ]; then
-    echo "⚠️ No existe el directorio para la ruta $RUTA, omitiendo..."
+  if [ "$ROUTE_EXISTS" -gt "0" ]; then
+    echo "Ruta $ROUTE_ID ya existe en la base de datos, omitiendo..."
     continue
   fi
   
-  # Verificar si tiene subdirectorio ruta_1
-  if [ -d "$RUTA_DIR/ruta_1" ]; then
-    echo "Importando ruta $RUTA (alternativa 1)..."
-    tsx scripts/importar-ruta-directamente.ts $RUTA 1
-    
-    if [ $? -eq 0 ]; then
-      echo "✅ Ruta $RUTA (alternativa 1) importada con éxito"
-      RUTAS_IMPORTADAS=$((RUTAS_IMPORTADAS + 1))
-    else
-      echo "❌ Error al importar ruta $RUTA (alternativa 1)"
-      RUTAS_FALLIDAS=$((RUTAS_FALLIDAS + 1))
-    fi
+  # Ejecutar script para importar ruta alterna
+  echo "Ejecutando importación alterna para ruta $ROUTE_ID..."
+  tsx scripts/importar-ruta-directamente.ts $ROUTE_ID 1
+  
+  # Verificar si se importó la primera alternativa
+  ALT1_EXISTS=$(psql "$DATABASE_URL" -t -c "SELECT COUNT(*) FROM bus_routes WHERE name = 'Ruta $ROUTE_ID (Alternativa 1)';" | tr -d '[:space:]')
+  
+  if [ "$ALT1_EXISTS" -gt "0" ]; then
+    echo "✅ Ruta $ROUTE_ID (Alternativa 1) importada con éxito"
+    TOTAL_IMPORTED=$((TOTAL_IMPORTED + 1))
+  else
+    echo "❌ Error al importar ruta $ROUTE_ID (Alternativa 1)"
+    TOTAL_FAILED=$((TOTAL_FAILED + 1))
   fi
   
-  # Verificar si tiene subdirectorio ruta_2
-  if [ -d "$RUTA_DIR/ruta_2" ]; then
-    echo "Importando ruta $RUTA (alternativa 2)..."
-    tsx scripts/importar-ruta-directamente.ts $RUTA 2
-    
-    if [ $? -eq 0 ]; then
-      echo "✅ Ruta $RUTA (alternativa 2) importada con éxito"
-      RUTAS_IMPORTADAS=$((RUTAS_IMPORTADAS + 1))
-    else
-      echo "❌ Error al importar ruta $RUTA (alternativa 2)"
-      RUTAS_FALLIDAS=$((RUTAS_FALLIDAS + 1))
-    fi
+  # Importar segunda alternativa
+  echo "Ejecutando importación alterna 2 para ruta $ROUTE_ID..."
+  tsx scripts/importar-ruta-directamente.ts $ROUTE_ID 2
+  
+  # Verificar si se importó la segunda alternativa
+  ALT2_EXISTS=$(psql "$DATABASE_URL" -t -c "SELECT COUNT(*) FROM bus_routes WHERE name = 'Ruta $ROUTE_ID (Alternativa 2)';" | tr -d '[:space:]')
+  
+  if [ "$ALT2_EXISTS" -gt "0" ]; then
+    echo "✅ Ruta $ROUTE_ID (Alternativa 2) importada con éxito"
+    TOTAL_IMPORTED=$((TOTAL_IMPORTED + 1))
+  else
+    echo "❌ Error al importar ruta $ROUTE_ID (Alternativa 2)"
+    TOTAL_FAILED=$((TOTAL_FAILED + 1))
   fi
   
-  # Si no hay ninguno de los subdirectorios
-  if [ ! -d "$RUTA_DIR/ruta_1" ] && [ ! -d "$RUTA_DIR/ruta_2" ]; then
-    echo "⚠️ La ruta $RUTA no tiene subdirectorios ruta_1 o ruta_2"
-    RUTAS_FALLIDAS=$((RUTAS_FALLIDAS + 1))
-  fi
+  # Mostrar progreso
+  CURRENT_TOTAL=$(psql "$DATABASE_URL" -t -c "SELECT COUNT(*) FROM bus_routes;" | tr -d '[:space:]')
+  echo "Progreso actual: $TOTAL_IMPORTED rutas importadas, $TOTAL_FAILED fallidas (Total: $CURRENT_TOTAL rutas)"
   
-  echo "Progreso: $RUTAS_IMPORTADAS rutas importadas, $RUTAS_FALLIDAS errores"
+  # Pausa para evitar sobrecarga
+  sleep 2
 done
 
+# Resumen final
 echo ""
-echo "=================================================="
-echo "RESUMEN DE IMPORTACIÓN"
-echo "- Rutas importadas: $RUTAS_IMPORTADAS"
-echo "- Rutas fallidas: $RUTAS_FALLIDAS"
-echo "=================================================="
-
-echo "Finalizada importación de rutas alternativas $START_ROUTE a $END_ROUTE"
+echo "=== RESUMEN DE IMPORTACIÓN DE RUTAS ALTERNAS ==="
+FINAL_TOTAL=$(psql "$DATABASE_URL" -t -c "SELECT COUNT(*) FROM bus_routes;" | tr -d '[:space:]')
+echo "- Rutas importadas: $TOTAL_IMPORTED"
+echo "- Rutas fallidas: $TOTAL_FAILED"
+echo "- Total de rutas en la base de datos: $FINAL_TOTAL"
+echo "=== IMPORTACIÓN COMPLETADA ==="
