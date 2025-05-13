@@ -1,4 +1,4 @@
-import { BusRoute, BusStop, busRoutes, busStops, type InsertBusRoute, type InsertBusStop } from "@shared/schema";
+import { BusRoute, BusStop, BusStopLocation, busRoutes, busStops, type InsertBusRoute, type InsertBusStop } from "@shared/schema";
 import { mockRoutes } from "./data/routes";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
@@ -13,6 +13,7 @@ export interface IStorage {
   createRoute(route: InsertBusRoute): Promise<BusRoute>;
   createStop(stop: InsertBusStop): Promise<BusStop>;
   updateRoute(id: number, updates: Partial<BusRoute>): Promise<BusRoute | undefined>;
+  updateStopLocation(id: number): Promise<BusStop | undefined>;
   initializeData(): Promise<void>;
 }
 

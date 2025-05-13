@@ -27,6 +27,7 @@ export const busStops = pgTable("bus_stops", {
   longitude: text("longitude").notNull(),
   isTerminal: boolean("is_terminal").default(false),
   terminalType: text("terminal_type").default(""),
+  location: jsonb("location"),
 });
 
 // Schema adicional para paradas de ruta que incluye GeoJSON
@@ -89,4 +90,10 @@ export type StopPoint = {
   coordinates: [number, number];
   isTerminal: boolean;
   terminalType: string;
+};
+
+// Define the location type for bus stops
+export type BusStopLocation = {
+  type: "Point";
+  coordinates: [number, number]; // [longitude, latitude]
 };
