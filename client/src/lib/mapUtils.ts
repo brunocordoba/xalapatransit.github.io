@@ -25,13 +25,17 @@ export class RouteLayers {
 
 // Initialize the map
 export function initializeMap(container: HTMLElement, center: [number, number], zoom: number): L.Map {
+  // Crear el mapa con configuración exacta para Xalapa
   const map = L.map(container, {
     zoomControl: false,
     attributionControl: true,
     minZoom: MIN_ZOOM,
     maxZoom: MAX_ZOOM,
     maxBounds: L.latLngBounds(XALAPA_BOUNDS),
-    maxBoundsViscosity: 1.0 // Hace que el mapa "rebote" cuando se intenta alejar de los límites
+    maxBoundsViscosity: 1.0, // Hace que el mapa "rebote" cuando se intenta alejar de los límites
+    zoomSnap: 0.5,  // Permite niveles de zoom fraccionarios como 9.5
+    wheelPxPerZoomLevel: 120,  // Control más preciso del zoom con la rueda del ratón
+    bounceAtZoomLimits: true   // Rebote al alcanzar los límites de zoom
   }).setView(center, zoom);
   
   // Usar Mapbox como proveedor de mapas base (exactamente como Mapaton)
