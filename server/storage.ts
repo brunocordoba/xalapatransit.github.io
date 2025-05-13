@@ -9,6 +9,7 @@ export interface IStorage {
   getRoute(id: number): Promise<BusRoute | undefined>;
   getRoutesByZone(zone: string): Promise<BusRoute[]>;
   getStopsByRouteId(routeId: number): Promise<BusStop[]>;
+  getAllStops(): Promise<BusStop[]>;
   createRoute(route: InsertBusRoute): Promise<BusRoute>;
   createStop(stop: InsertBusStop): Promise<BusStop>;
   updateRoute(id: number, updates: Partial<BusRoute>): Promise<BusRoute | undefined>;
@@ -51,6 +52,10 @@ export class DatabaseStorage implements IStorage {
 
   async getStopsByRouteId(routeId: number): Promise<BusStop[]> {
     return await db.select().from(busStops).where(eq(busStops.routeId, routeId));
+  }
+  
+  async getAllStops(): Promise<BusStop[]> {
+    return await db.select().from(busStops);
   }
 
   async createRoute(insertRoute: InsertBusRoute): Promise<BusRoute> {

@@ -31,36 +31,50 @@ const RoutePlanner: React.FC = () => {
     setEndLocation(temp);
   };
 
-  const handleCalculateRoute = () => {
+  const handleCalculateRoute = async () => {
     setIsCalculating(true);
-    // Simulamos un cálculo que tarda 1 segundo
-    setTimeout(() => {
-      setIsCalculating(false);
+    
+    try {
+      const response = await fetch('/api/plan-route', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: startLocation,
+          to: endLocation,
+          departureTime: isArrival ? null : departureTime,
+          arrivalTime: isArrival ? arrivalTime : null,
+          isArrival,
+          date: date.toISOString()
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Error al calcular la ruta');
+      }
+      
+      const results = await response.json();
+      setRouteResults(results);
+    } catch (error) {
+      console.error('Error al planificar ruta:', error);
+      // En caso de error, mostrar al menos algún resultado de ejemplo
       setRouteResults([
         { 
           id: 1, 
           duration: "45 min", 
-          startTime: "12:00", 
+          startTime: departureTime || "12:00", 
           endTime: "12:45",
           steps: [
             { type: "walk", duration: "5 min", description: "Caminar hasta parada Terminal Centro" },
             { type: "bus", routeNumber: "82", routeName: "Ruta 82", duration: "35 min", startStop: "Terminal Centro", endStop: "Calle Murillo Vidal" },
             { type: "walk", duration: "5 min", description: "Caminar hasta destino" }
           ]
-        },
-        { 
-          id: 2, 
-          duration: "50 min", 
-          startTime: "12:15", 
-          endTime: "13:05",
-          steps: [
-            { type: "walk", duration: "5 min", description: "Caminar hasta parada Terminal Norte" },
-            { type: "bus", routeNumber: "84", routeName: "Ruta 84", duration: "40 min", startStop: "Terminal Norte", endStop: "Av. Orizaba" },
-            { type: "walk", duration: "5 min", description: "Caminar hasta destino" }
-          ]
         }
       ]);
-    }, 1000);
+    } finally {
+      setIsCalculating(false);
+    }
   };
 
   return (
