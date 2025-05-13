@@ -4,7 +4,6 @@ import Header from '@/components/Header';
 import SidePanel from '@/components/SidePanel';
 import MapView from '@/components/MapView';
 import RouteDetail from '@/components/RouteDetail';
-import AllRoutesButtonPortal from '@/components/AllRoutesButtonPortal';
 import { BusRoute, BusStop } from '@shared/schema';
 import { useIsMobile } from '@/hooks/use-mobile';
 

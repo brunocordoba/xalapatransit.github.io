@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { zones } from '@/lib/constants';
+import AllRoutesPanel from '@/components/AllRoutesPanel';
 
 type SidePanelProps = {
   show: boolean;
@@ -195,8 +196,13 @@ export default function SidePanel({
           Planifica Tu Viaje
         </Button>
         
-        {/* Añadimos contenedor para el botón de Todas las rutas */}
-        <div id="all-routes-container" className="w-full"></div>
+        {/* Botón de Todas las rutas */}
+        <AllRoutesPanel
+          routes={allRoutes}
+          isLoading={isLoading}
+          onRouteSelect={onRouteSelect}
+          selectedRouteId={selectedRouteId}
+        />
       </div>
     </div>
   );
