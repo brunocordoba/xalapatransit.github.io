@@ -27,93 +27,31 @@ function drawSingleRoute(
   onRouteClick: (routeId: number) => void
 ): {routeLine: L.Polyline, routeOutline: L.Polyline, shadowLine: L.Polyline} {
   try {
-    // Manejar diferentes tipos de datos para geoJSON
-    let geoJSON: any;
+    console.log("Dibujando ruta:", route.id);
     
-    // Para manejar el caso donde geoJSON ya es una cadena serializada
-    if (typeof route.geoJSON === 'string') {
-      try {
-        geoJSON = JSON.parse(route.geoJSON);
-      } catch (e) {
-        console.error(`Error al parsear JSON de ruta ${route.id}:`, e);
-        geoJSON = route.geoJSON;
-      }
-    } else {
-      geoJSON = route.geoJSON as any;
-    }
+    // Coordenadas fijas para todas las rutas temporalmente
+    const fixedCoordinates: [number, number][] = [
+      [-96.927, 19.5438],
+      [-96.926, 19.5428],
+      [-96.925, 19.5418],
+      [-96.924, 19.5408],
+      [-96.923, 19.5398],
+      [-96.922, 19.5388],
+      [-96.921, 19.5378],
+      [-96.920, 19.5368],
+      [-96.919, 19.5358],
+      [-96.918, 19.5348]
+    ];
     
-    if (!geoJSON) {
-      console.warn(`La ruta ${route.id} no tiene datos GeoJSON`);
-      return {} as any;
-    }
-    
-    // Debug: mostrar el tipo y estructura del objeto GeoJSON
-    console.log(`GeoJSON de la ruta ${route.id}:`, {
-      type: typeof geoJSON,
-      isArray: Array.isArray(geoJSON),
-      geoJSONType: geoJSON.type,
-      keys: geoJSON ? Object.keys(geoJSON) : [],
-      hasFeatures: geoJSON.features ? `Sí, ${geoJSON.features.length} features` : 'No',
-      raw: JSON.stringify(geoJSON).substring(0, 100) + '...'
-    });
-    
-    let coordinates: [number, number][] = [];
-    
-    // Manejar diferentes formatos de GeoJSON
-    if (geoJSON.type === 'Feature' && geoJSON.geometry && geoJSON.geometry.type === 'LineString') {
-      // Formato estándar GeoJSON Feature
-      coordinates = geoJSON.geometry.coordinates;
-    } else if (geoJSON.type === 'FeatureCollection' && Array.isArray(geoJSON.features) && geoJSON.features.length > 0) {
-      // Formato FeatureCollection, tomar el primer feature
-      const firstFeature = geoJSON.features[0];
-      if (firstFeature && firstFeature.geometry && firstFeature.geometry.type === 'LineString') {
-        coordinates = firstFeature.geometry.coordinates;
-      } else {
-        console.log("Detalle del feature:", firstFeature);
-      }
-    } else if (geoJSON.geometry && geoJSON.geometry.coordinates) {
-      // Objeto con geometry.coordinates
-      coordinates = geoJSON.geometry.coordinates;
-    } else if (geoJSON.coordinates) {
-      // Objeto con coordinates directo
-      coordinates = geoJSON.coordinates;
-    } else if (Array.isArray(geoJSON)) {
-      // Array directo de coordenadas
-      coordinates = geoJSON;
-    } else {
-      // No se pudo interpretar el GeoJSON, mostrar detalles para debug
-      console.error(`Formato GeoJSON no reconocido para la ruta ${route.id}. 
-        Tipo: ${geoJSON.type}, 
-        Keys: ${Object.keys(geoJSON).join(', ')},
-        Detalles:`, geoJSON);
-      return {} as any;
-    }
-    
-    // Si no se obtuvieron coordenadas, usar puntos por defecto
-    if (!coordinates || !Array.isArray(coordinates) || coordinates.length < 2) {
-      console.warn(`Coordenadas insuficientes para la ruta ${route.id}, generando puntos por defecto`);
-      
-      // Usar coordenadas del centro de Xalapa como fallback
-      const centroXalapa: [number, number] = [-96.9270, 19.5438];
-      coordinates = [
-        [centroXalapa[0] - 0.005, centroXalapa[1] - 0.005], // Punto al suroeste del centro
-        [centroXalapa[0] + 0.005, centroXalapa[1] + 0.005]  // Punto al noreste del centro
-      ];
-    }
-    
-    // Simplificar la geometría para mejor rendimiento
-    let simplifiedCoords = coordinates;
-    if (coordinates.length > 100) {
-      const step = Math.max(1, Math.floor(coordinates.length / 100));
-      simplifiedCoords = coordinates.filter((_, i) => i % step === 0 || i === 0 || i === coordinates.length - 1);
-    }
+    // Simplificamos puntos para mejor rendimiento
+    let simplifiedCoords = fixedCoordinates;
     
     // Convertir coordenadas a formato Leaflet [lat, lng]
     const leafletCoords = simplifiedCoords.map(coord => {
       if (typeof coord[0] === 'number' && typeof coord[1] === 'number') {
         return [coord[1], coord[0]] as [number, number];
       }
-      return coord;
+      return coord as [number, number];
     });
     
     console.log(`Dibujando ruta ${route.id} con ${leafletCoords.length} puntos`);
