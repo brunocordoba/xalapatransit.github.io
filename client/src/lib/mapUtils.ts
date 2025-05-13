@@ -1,8 +1,6 @@
 import L from 'leaflet';
 import { BusRoute, GeoJSONFeature } from '@shared/schema';
 import { XALAPA_CENTER, XALAPA_BOUNDS, MIN_ZOOM, MAX_ZOOM } from './constants';
-import { xalapaBoundary, boundaryStyle } from './xalapa-boundary';
-import { xalapaPOIs, getPOIIcon } from './xalapa-pois';
 
 // Clase para agrupar las capas de una ruta
 export class RouteLayers {
@@ -72,129 +70,6 @@ export function initializeMap(container: HTMLElement, center: [number, number], 
   });
   
   console.log('Mapa inicializado con límites de Xalapa:', XALAPA_BOUNDS);
-  
-  // Añadir el contorno de la ciudad como un GeoJSON con estilos y clases CSS
-  const cityBoundary = L.geoJSON(xalapaBoundary as any, {
-    style: {
-      ...boundaryStyle,
-      className: 'city-boundary' // Aplicar la clase CSS
-    },
-    interactive: true // Permitir interacciones con el contorno
-  }).addTo(map);
-  
-  // Añadir un popup informativo al hacer clic en el contorno
-  cityBoundary.bindPopup(`
-    <div class="text-sm">
-      <h3 class="font-bold text-green-600">Xalapa</h3>
-      <p class="text-xs mt-1">Capital del Estado de Veracruz</p>
-      <p class="text-xs mt-1">Límites municipales</p>
-      <div class="text-xs text-gray-500 mt-2">Haz clic para más información</div>
-    </div>
-  `, {
-    closeButton: false,
-    offset: L.point(0, -10),
-    className: 'city-popup'
-  });
-  
-  // Eventos interactivos para el contorno de la ciudad
-  cityBoundary.on('mouseover', (e) => {
-    // Cambiar el estilo al pasar el mouse por encima
-    const layer = e.target;
-    layer.setStyle({
-      weight: 4,
-      fillOpacity: 0.15,
-      className: 'city-boundary pulse-boundary' // Añadir animación de pulso
-    });
-    
-    // Mostrar un tooltip
-    layer.bindTooltip('Límite municipal de Xalapa').openTooltip();
-  });
-  
-  cityBoundary.on('mouseout', (e) => {
-    // Restaurar el estilo original al quitar el mouse
-    e.target.setStyle({
-      ...boundaryStyle,
-      className: 'city-boundary'
-    });
-    
-    // Cerrar el tooltip
-    e.target.closeTooltip();
-  });
-  
-  // Mostrar el nombre de la ciudad en el centro (Label)
-  const cityLabel = L.marker(XALAPA_CENTER, {
-    icon: L.divIcon({
-      className: 'city-label',
-      html: '<div class="bg-white bg-opacity-70 px-2 py-1 rounded text-sm font-semibold text-green-700 shadow-sm">Xalapa</div>',
-      iconSize: [60, 20],
-      iconAnchor: [30, 10]
-    }),
-    interactive: false // No interactivo para evitar interferencias con el mapa
-  }).addTo(map);
-  
-  // Añadir puntos de interés (POIs) al mapa
-  const poisLayer = L.layerGroup().addTo(map);
-  
-  // Crear un grupo de marcadores para los POIs
-  xalapaPOIs.forEach(poi => {
-    // Crear un icono personalizado para cada tipo de POI
-    const poiIcon = L.divIcon({
-      className: 'poi-icon',
-      html: `<div class="bg-white rounded-full p-1 shadow-md text-${getPOIIcon(poi.type)}">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <text x="12" y="16" text-anchor="middle" font-size="10">i</text>
-              </svg>
-            </div>`,
-      iconSize: [22, 22],
-      iconAnchor: [11, 11]
-    });
-    
-    // Crear el marcador y añadirlo al grupo
-    const marker = L.marker(poi.coordinates, { 
-      icon: poiIcon,
-      riseOnHover: true
-    }).addTo(poisLayer);
-    
-    // Añadir un popup con la información del POI
-    marker.bindPopup(`
-      <div class="poi-popup">
-        <h3 class="text-sm font-bold">${poi.name}</h3>
-        <p class="text-xs text-gray-600 mt-1">${poi.description}</p>
-        <p class="text-xs mt-2">
-          <span class="text-green-600 font-medium">Tipo:</span> 
-          ${poi.type.charAt(0).toUpperCase() + poi.type.slice(1)}
-        </p>
-      </div>
-    `, {
-      closeButton: false,
-      offset: L.point(0, -10),
-      className: 'poi-popup'
-    });
-    
-    // Añadir tooltip para mostrar el nombre al pasar el mouse
-    marker.bindTooltip(poi.name, {
-      permanent: false,
-      direction: 'top',
-      className: 'poi-tooltip'
-    });
-  });
-  
-  // Función para mostrar/ocultar los POIs según el nivel de zoom
-  map.on('zoomend', () => {
-    const currentZoom = map.getZoom();
-    
-    // Mostrar los POIs solo cuando el zoom es suficiente (>13)
-    if (currentZoom > 13) {
-      if (!map.hasLayer(poisLayer)) {
-        map.addLayer(poisLayer);
-      }
-    } else {
-      if (map.hasLayer(poisLayer)) {
-        map.removeLayer(poisLayer);
-      }
-    }
-  });
   
   return map;
 }
