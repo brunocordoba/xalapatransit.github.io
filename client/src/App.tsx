@@ -15,6 +15,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/editor" component={RouteEditor} />
       <Route path="/planificador" component={RoutePlanner} />
+      <Route path="/paradas-cercanas" component={NearbyStops} />
       <Route component={NotFound} />
     </Switch>
   );

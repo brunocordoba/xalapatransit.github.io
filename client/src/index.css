@@ -177,3 +177,37 @@
 .clear-selection:hover {
   background-color: #fff1f2;
 }
+
+/* Estilo para botones con tema de Orizo */
+.btn-orizo-blue {
+  background-color: #0056A4;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.btn-orizo-blue:hover {
+  background-color: #004385;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.btn-orizo-yellow {
+  background-color: #F9CD00;
+  color: #333;
+  border: none;
+  border-radius: 4px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.btn-orizo-yellow:hover {
+  background-color: #e8bf00;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* Variante para los botones de shadcn */
+.btn-variant-orizo {
+  @apply bg-[#0056A4] text-white hover:bg-[#004385] font-medium;
+}

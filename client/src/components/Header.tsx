@@ -15,6 +15,16 @@ export default function Header() {
               </Link>
             </li>
             <li>
+              <Link href="/planificador" className="hover:underline">
+                Planificador
+              </Link>
+            </li>
+            <li>
+              <Link href="/paradas-cercanas" className="hover:underline">
+                Paradas Cercanas
+              </Link>
+            </li>
+            <li>
               <Link href="/editor" className="hover:underline">
                 Editor
               </Link>
