@@ -4,7 +4,7 @@ import Header from '@/components/Header';
 import SidePanel from '@/components/SidePanel';
 import MapView from '@/components/MapView';
 import RouteDetail from '@/components/RouteDetail';
-import AllRoutesPanel from '@/components/AllRoutesPanel';
+import AllRoutesButtonPortal from '@/components/AllRoutesButtonPortal';
 import { BusRoute, BusStop } from '@shared/schema';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -102,15 +102,7 @@ export default function Home() {
           showAllRoutes={showAllRoutes}
         />
         
-        {/* Componente flotante para el botón de Todas las Rutas */}
-        <div className="absolute bottom-6 right-6 z-20">
-          <AllRoutesPanel
-            routes={routes || []}
-            isLoading={routesLoading}
-            onRouteSelect={handleRouteSelect}
-            selectedRouteId={selectedRouteId}
-          />
-        </div>
+
         
         {selectedRoute && (
           <RouteDetail 

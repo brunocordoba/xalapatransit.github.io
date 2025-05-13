@@ -190,10 +190,13 @@ export default function SidePanel({
         </div>
       </div>
       
-      <div className="border-t p-4">
+      <div className="border-t p-4 space-y-3">
         <Button className="w-full py-2 bg-primary text-white rounded-lg font-medium hover:bg-blue-600 transition">
           Planifica Tu Viaje
         </Button>
+        
+        {/* Añadimos contenedor para el botón de Todas las rutas */}
+        <div id="all-routes-container" className="w-full"></div>
       </div>
     </div>
   );

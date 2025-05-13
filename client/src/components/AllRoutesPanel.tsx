@@ -66,12 +66,10 @@ export default function AllRoutesPanel({
       <DialogTrigger asChild>
         <Button 
           variant="default" 
-          className="bg-green-600 text-white hover:bg-green-700 flex items-center gap-2 shadow-xl rounded-full px-6"
-          size="lg"
+          className="w-full bg-green-600 text-white hover:bg-green-700 flex items-center justify-center gap-2"
         >
           <Map className="h-5 w-5" />
-          <span className="hidden sm:inline">Todas las Rutas</span>
-          <span className="sm:hidden">Rutas</span>
+          <span>Todas las Rutas</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
