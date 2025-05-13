@@ -27,10 +27,7 @@ async function importStopsFromGeoJSON(routeId: number, geojsonPath: string) {
     }
     
     // Contar paradas existentes
-    const result = await db.execute(
-      `SELECT COUNT(*) as count FROM bus_route_stops WHERE route_id = $1`,
-      [routeId]
-    );
+    const result = await db.execute(`SELECT COUNT(*) as count FROM bus_route_stops WHERE route_id = ${routeId}`);
     
     const existingCount = Number(result.rows[0]?.count || 0);
     console.log(`La ruta ${routeId} tiene ${existingCount} paradas existentes.`);
@@ -38,10 +35,7 @@ async function importStopsFromGeoJSON(routeId: number, geojsonPath: string) {
     // Eliminar paradas existentes si es necesario
     if (existingCount > 0) {
       console.log(`Eliminando ${existingCount} paradas existentes para la ruta ${routeId}...`);
-      await db.execute(
-        `DELETE FROM bus_route_stops WHERE route_id = $1`,
-        [routeId]
-      );
+      await db.execute(`DELETE FROM bus_route_stops WHERE route_id = ${routeId}`);
     }
     
     // Filtrar por rutas específicas o usar todas
@@ -94,10 +88,11 @@ async function importStopsFromGeoJSON(routeId: number, geojsonPath: string) {
           const parsedData = insertBusRouteStopSchema.parse(stopData);
           
           // Insertar la parada en la base de datos
-          await db.execute(
-            `INSERT INTO bus_route_stops (route_id, name, sequence, geo_json) VALUES ($1, $2, $3, $4)`,
-            [routeId, stopData.name, stopData.sequence, JSON.stringify(stopData.geoJSON)]
-          );
+          const geoJsonStr = JSON.stringify(stopData.geoJSON);
+          await db.execute(`
+            INSERT INTO bus_route_stops (route_id, name, sequence, geo_json) 
+            VALUES (${routeId}, '${stopData.name}', ${stopData.sequence}, '${geoJsonStr}')
+          `);
           insertedCount++;
           
           if (insertedCount % 10 === 0) {
@@ -111,10 +106,7 @@ async function importStopsFromGeoJSON(routeId: number, geojsonPath: string) {
     
     // Actualizar el contador de paradas en la ruta
     if (insertedCount > 0) {
-      await db.execute(
-        `UPDATE bus_routes SET stops_count = $1 WHERE id = $2`,
-        [insertedCount, routeId]
-      );
+      await db.execute(`UPDATE bus_routes SET stops_count = ${insertedCount} WHERE id = ${routeId}`);
     }
     
     console.log(`✅ Se insertaron ${insertedCount} paradas para la ruta ${routeId}`);
