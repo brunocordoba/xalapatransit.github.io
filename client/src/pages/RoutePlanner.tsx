@@ -15,10 +15,12 @@ import { Separator } from "@/components/ui/separator";
 import RouteMapView from "../components/RouteMapView";
 import { useQuery } from "@tanstack/react-query";
 import { BusRoute } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
 
 const RoutePlanner: React.FC = () => {
   const [startLocation, setStartLocation] = useState("");
   const [endLocation, setEndLocation] = useState("");
+  const { toast } = useToast();
   const [date, setDate] = useState<Date>(new Date());
   const [departureTime, setDepartureTime] = useState<string>("12:00");
   const [arrivalTime, setArrivalTime] = useState<string>("13:00");
@@ -65,20 +67,11 @@ const RoutePlanner: React.FC = () => {
       setRouteResults(results);
     } catch (error) {
       console.error('Error al planificar ruta:', error);
-      // En caso de error, mostrar al menos algún resultado de ejemplo
-      setRouteResults([
-        { 
-          id: 1, 
-          duration: "45 min", 
-          startTime: departureTime || "12:00", 
-          endTime: "12:45",
-          steps: [
-            { type: "walk", duration: "5 min", description: "Caminar hasta parada Terminal Centro" },
-            { type: "bus", routeNumber: "82", routeName: "Ruta 82", duration: "35 min", startStop: "Terminal Centro", endStop: "Calle Murillo Vidal" },
-            { type: "walk", duration: "5 min", description: "Caminar hasta destino" }
-          ]
-        }
-      ]);
+      toast({
+        title: "Error al calcular ruta",
+        description: "No se pudo encontrar una ruta entre el origen y destino especificados. Por favor, intenta con otras ubicaciones.",
+        variant: "destructive"
+      });
     } finally {
       setIsCalculating(false);
     }
@@ -328,19 +321,19 @@ const RoutePlanner: React.FC = () => {
                                   </svg>
                                 </div>
                               ) : (
-                                <div className="orizo-route-badge mr-3">
-                                  <span className="text-sm font-bold">{step.routeNumber}</span>
+                                <div className="orizo-route-badge mr-3" style={{backgroundColor: step.routeColor || '#0056A4'}}>
+                                  <span className="text-sm font-bold">{step.routeName?.split(' ')[1] || ''}</span>
                                 </div>
                               )}
                               <div className="flex-1">
                                 <div className="text-sm">
                                   {step.type === 'walk' ? (
-                                    step.description
+                                    `Caminar ${step.distance}`
                                   ) : (
                                     <>
                                       <span className="font-bold">{step.routeName}</span>
                                       <div className="text-xs text-muted-foreground mt-1">
-                                        De {step.startStop} a {step.endStop}
+                                        De {step.from.stopName} a {step.to.stopName}
                                       </div>
                                     </>
                                   )}
