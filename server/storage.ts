@@ -52,7 +52,30 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getStopsByRouteId(routeId: number): Promise<BusStop[]> {
-    return await db.select().from(busStops).where(eq(busStops.routeId, routeId));
+    try {
+      // Usar una consulta simple y agregar manualmente la propiedad 'order' faltante
+      const result = await db.select().from(busStops).where(eq(busStops.routeId, routeId));
+      
+      // Si no hay paradas, devolver un array vacío
+      if (!result || result.length === 0) {
+        return [];
+      }
+      
+      // Comprobar si la propiedad 'order' está ausente y agregarla si es necesario
+      if (!('order' in result[0])) {
+        // Añadir un valor para la propiedad 'order'
+        return result.map((stop, index) => ({
+          ...stop,
+          order: index
+        })) as BusStop[];
+      }
+      
+      return result;
+    } catch (error) {
+      console.error(`Error al obtener paradas para la ruta ${routeId}:`, error);
+      // Devolver un array vacío en caso de error para evitar que la aplicación falle
+      return [];
+    }
   }
   
   async getAllStops(): Promise<BusStop[]> {

@@ -198,6 +198,31 @@ export default function RouteMapView({
     };
   }, []);
   
+  // Efecto para cargar las paradas de las rutas seleccionadas
+  const [routeStops, setRouteStops] = useState<Map<number, any[]>>(new Map());
+  
+  useEffect(() => {
+    // Cargar las paradas de las rutas seleccionadas cuando cambian
+    if (selectedRoutes.length > 0) {
+      selectedRoutes.forEach(routeId => {
+        if (!routeStops.has(routeId)) {
+          fetch(`/api/routes/${routeId}/stops`)
+            .then(response => response.json())
+            .then(data => {
+              setRouteStops(prev => {
+                const newMap = new Map(prev);
+                newMap.set(routeId, data);
+                return newMap;
+              });
+            })
+            .catch(error => {
+              console.error(`Error al cargar paradas para la ruta ${routeId}:`, error);
+            });
+        }
+      });
+    }
+  }, [selectedRoutes]);
+
   // Efecto para manejar la visualización de rutas seleccionadas
   useEffect(() => {
     if (!mapReady || !mapInstanceRef.current) return;
@@ -212,6 +237,14 @@ export default function RouteMapView({
         map.removeLayer(layers.shadowLine);
       }
     });
+    
+    // Limpiar todos los marcadores de paradas existentes
+    stopMarkersRef.current.forEach(marker => {
+      if (map.hasLayer(marker)) {
+        map.removeLayer(marker);
+      }
+    });
+    stopMarkersRef.current = [];
     
     // Resetear las capas almacenadas
     routeLayersRef.current.clear();
@@ -255,6 +288,13 @@ export default function RouteMapView({
         } catch (error) {
           console.error("Error al extender bounds:", error);
         }
+        
+        // Agregar las paradas de la ruta si tenemos datos
+        if (showStops && routeStops.has(route.id)) {
+          const stops = routeStops.get(route.id) || [];
+          const stopsMarkers = addBusStops(map, route.id, stops, route.color);
+          stopMarkersRef.current = [...stopMarkersRef.current, ...stopsMarkers];
+        }
       });
       
       // Ajustar el mapa a los bounds de todas las rutas
@@ -266,7 +306,7 @@ export default function RouteMapView({
         });
       }
     }
-  }, [mapReady, routes, selectedRoutes]);
+  }, [mapReady, routes, selectedRoutes, routeStops, showStops]);
   
   // Efecto para dibujar puntos de caminata
   useEffect(() => {
