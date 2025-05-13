@@ -161,10 +161,27 @@ async function importarRutaAlternativa() {
       if (match) {
         const count = parseInt(match[1], 10);
         if (count > 0) {
-          console.log(`La ruta ${routeName} ya existe en la base de datos, omitiendo...`);
-          // Limpiar directorio temporal
-          fs.rmSync(tempDir, { recursive: true, force: true });
-          process.exit(0);
+          // Esta vez vamos a forzar la importación aunque exista
+          console.log(`La ruta ${routeName} parece existir en la base de datos, pero verificaremos...`);
+          
+          // Verificación adicional para asegurarnos que realmente existe
+          const verifySql = `
+            SELECT id FROM bus_routes WHERE name = '${routeName}';
+          `;
+          
+          try {
+            const { stdout: verifyResult } = await execAsync(`psql "$DATABASE_URL" -c "${verifySql}"`);
+            if (verifyResult.includes('(0 rows)')) {
+              console.log(`La ruta ${routeName} no existe realmente. Procediendo con la importación...`);
+            } else {
+              console.log(`La ruta ${routeName} ya existe en la base de datos, omitiendo...`);
+              // Limpiar directorio temporal
+              fs.rmSync(tempDir, { recursive: true, force: true });
+              process.exit(0);
+            }
+          } catch (error) {
+            console.log(`Error verificando existencia, asumimos que no existe: ${(error as Error).message}`);
+          }
         }
       }
     } catch (error) {
