@@ -2,8 +2,20 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { db } from '../server/db';
+import { Pool, neonConfig } from '@neondatabase/serverless';
+import ws from 'ws';
 import { busRoutes, busStops, insertBusRouteSchema, insertBusStopSchema } from '../shared/schema';
 import { eq } from 'drizzle-orm';
+
+// Configurar WebSocket para Neon
+neonConfig.webSocketConstructor = ws;
+
+// Configurar conexión a la base de datos
+if (!process.env.DATABASE_URL) {
+  throw new Error('DATABASE_URL environment variable is not set');
+}
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 // ESM compatible __dirname
 const __filename = fileURLToPath(import.meta.url);

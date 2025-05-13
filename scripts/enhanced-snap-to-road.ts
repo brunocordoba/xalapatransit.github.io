@@ -179,9 +179,9 @@ export async function enhancedSnapToRoad(coordinates: [number, number][]): Promi
   }
 
   // Si hay demasiados puntos, dividir en chunks con solapamiento para mejor continuidad
-  if (coordinates.length > 90) {
-    const CHUNK_SIZE = 90;
-    const OVERLAP = 5;  // Puntos de solapamiento entre chunks
+  if (coordinates.length > 50) {
+    const CHUNK_SIZE = 50; // Tamaño de chunk reducido para evitar URLs demasiado largas
+    const OVERLAP = 3;  // Puntos de solapamiento entre chunks
     const chunks: [number, number][][] = [];
     
     for (let i = 0; i < coordinates.length; i += (CHUNK_SIZE - OVERLAP)) {
@@ -221,8 +221,9 @@ export async function enhancedSnapToRoad(coordinates: [number, number][]): Promi
     return snappedChunks.flat();
   }
 
-  // Calcular radios adaptativos para cada punto
-  const radiuses = calculateAdaptiveRadiuses(coordinates);
+  // Usamos un radio uniforme para todos los puntos ya que el adaptativo está causando problemas
+  const uniformRadius = 25;
+  const radiuses = Array(coordinates.length).fill(uniformRadius);
   
   // Formato de coordenadas para la API de Mapbox: lon,lat
   const coordinatesStr = coordinates
@@ -233,8 +234,8 @@ export async function enhancedSnapToRoad(coordinates: [number, number][]): Promi
   const radiusesStr = radiuses.join(';');
 
   try {
-    // Construir la URL con los parámetros adecuados y mejoras
-    const url = `https://api.mapbox.com/matching/v5/mapbox/driving/${coordinatesStr}?access_token=${MAPBOX_ACCESS_TOKEN}&geometries=geojson&overview=full&radiuses=${radiusesStr}&tidy=true&gaps=split`;
+    // Construir la URL con los parámetros adecuados pero simplificados para evitar errores
+    const url = `https://api.mapbox.com/matching/v5/mapbox/driving/${coordinatesStr}?access_token=${MAPBOX_ACCESS_TOKEN}&geometries=geojson&overview=full&radiuses=${radiusesStr}`;
 
     // Hacer la solicitud a la API
     const response = await fetch(url);
