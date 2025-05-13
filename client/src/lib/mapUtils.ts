@@ -78,20 +78,19 @@ export function initializeMap(container: HTMLElement, center: [number, number], 
   return map;
 }
 
-// Get bus stop icon - Estilo orizo.fr
+// Get bus stop icon - Estilo orizo.fr actualizado según nueva imagen de referencia
 export function getBusStopIcon(isTerminal: boolean | null, color: string = '#ffffff'): L.DivIcon {
   // En caso de que isTerminal sea null, tratarlo como false
   const isActuallyTerminal = isTerminal === true;
   
-  // Tamaños según orizo.fr (las paradas terminales son más grandes)
-  const size = isActuallyTerminal ? 22 : 14;
+  // Tamaños según la imagen de referencia (círculos blancos uniformes)
+  const size = isActuallyTerminal ? 16 : 12;
   
-  // Color de relleno y borde para el estilo orizo.fr
-  // - Paradas normales: círculos blancos con borde del color de la ruta
-  // - Paradas terminales: círculos del color de la ruta con borde blanco
-  const fillColor = isActuallyTerminal ? '#FFFFFF' : '#FFFFFF';
-  const borderColor = '#4caf50'; // Verde o el color seleccionado
-  const borderWidth = isActuallyTerminal ? 4 : 2;
+  // Color de relleno y borde para el estilo de la imagen
+  // Todas las paradas son círculos blancos con borde amarillo
+  const fillColor = '#FFFFFF';
+  const borderColor = '#FFDD00'; // Amarillo como la ruta
+  const borderWidth = 2;
   
   return L.divIcon({
     className: 'bus-stop-icon orizo-style',
@@ -209,9 +208,9 @@ export function drawRoutes(
         });
         
         // 3. Dibujar la línea de la ruta estilo orizo.fr
-        // Para rutas seleccionadas usamos #4caf50 (verde de orizo.fr) o negro (#000000)
+        // El color principal de las rutas es amarillo brillante como en la imagen de referencia
         const routeLine = L.polyline(leafletCoords, {
-          color: route.color || '#4caf50', // Verde por defecto, o negro para rutas seleccionadas
+          color: '#FFDD00', // Amarillo brillante como en la imagen compartida
           weight: 8,
           opacity: 1.0,
           lineCap: 'butt',
@@ -355,11 +354,11 @@ export function highlightRoute(
         // Aplicar estilo destacado
         console.log(`Aplicando estilo destacado a la ruta ${selectedRouteId}`);
         
-        // Estilo orizo.fr para ruta seleccionada (línea negra)
+        // Estilo actualizado para ruta seleccionada (línea gris oscuro, según imagen)
         routeLayers.route.setStyle({
           weight: 10, 
           opacity: 1.0,
-          color: '#000000', // Negro para ruta seleccionada (como en orizo.fr)
+          color: '#404040', // Gris oscuro para ruta seleccionada (como en la imagen)
           className: 'route-line selected orizo-style'
         });
         
@@ -490,4 +489,82 @@ export function addBusStops(
   });
   
   return markers;
+}
+
+// Generar icono para el punto de origen (verde) como en orizo.fr
+export function getOriginIcon(): L.DivIcon {
+  return L.divIcon({
+    className: 'origin-point-icon',
+    html: `
+      <div style="position: relative;">
+        <div
+          class="rounded-full shadow-xl" 
+          style="
+            width: 22px; 
+            height: 22px; 
+            background-color: #4CAF50;
+            border: 2px solid white;
+            box-shadow: 0 0 4px rgba(0,0,0,0.5);
+            position: absolute;
+            top: -22px;
+            left: -11px;
+          "
+        ></div>
+        <!-- Pequeña flecha inferior para señalar la ubicación exacta -->
+        <div 
+          style="
+            width: 0; 
+            height: 0; 
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 8px solid #4CAF50;
+            position: absolute;
+            top: -2px;
+            left: -6px;
+          "
+        ></div>
+      </div>
+    `,
+    iconSize: [22, 30],
+    iconAnchor: [11, 30]
+  });
+}
+
+// Generar icono para el punto de destino (naranja) como en orizo.fr
+export function getDestinationIcon(): L.DivIcon {
+  return L.divIcon({
+    className: 'destination-point-icon',
+    html: `
+      <div style="position: relative;">
+        <div
+          class="rounded-full shadow-xl" 
+          style="
+            width: 22px; 
+            height: 22px; 
+            background-color: #FF9800;
+            border: 2px solid white;
+            box-shadow: 0 0 4px rgba(0,0,0,0.5);
+            position: absolute;
+            top: -22px;
+            left: -11px;
+          "
+        ></div>
+        <!-- Pequeña flecha inferior para señalar la ubicación exacta -->
+        <div 
+          style="
+            width: 0; 
+            height: 0; 
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 8px solid #FF9800;
+            position: absolute;
+            top: -2px;
+            left: -6px;
+          "
+        ></div>
+      </div>
+    `,
+    iconSize: [22, 30],
+    iconAnchor: [11, 30]
+  });
 }

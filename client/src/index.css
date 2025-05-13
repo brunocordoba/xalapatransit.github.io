@@ -101,7 +101,12 @@
   stroke-width: 6;
 }
 
-/* Rutas seleccionadas en estilo orizo.fr son negras */
+/* Rutas en estilo orizo.fr: amarillas (normales) y gris oscuro (seleccionadas) */
+.route-line.orizo-style {
+  stroke-width: 8;
+  filter: none;
+}
+
 .route-line.selected.orizo-style {
   stroke-width: 8;
   filter: none;
@@ -136,14 +141,41 @@
   z-index: 1000 !important;
 }
 
-/* Paradas terminales (más grandes con borde blanco) */
+/* Paradas terminales (más grandes) */
 .terminal-stop.orizo-style {
   z-index: 700 !important;
 }
 
-/* Paradas normales (puntos blancos con borde verde) */
+/* Paradas normales (puntos blancos con borde amarillo) */
 .regular-stop.orizo-style {
   z-index: 650 !important;
+}
+
+/* Estilos para marcadores de origen (verde) y destino (naranja) */
+.origin-point-icon {
+  z-index: 800 !important;
+}
+
+.destination-point-icon {
+  z-index: 800 !important;
+}
+
+/* Animación para hacer destacar los iconos de origen y destino */
+@keyframes pulse-location {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.origin-point-icon > div,
+.destination-point-icon > div {
+  animation: pulse-location 2s infinite ease-in-out;
 }
 
 /* Animación de pulso suave para la ruta seleccionada */
