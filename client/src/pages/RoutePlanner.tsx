@@ -12,7 +12,9 @@ import { CalendarIcon, Clock10Icon, Clock3Icon, ArrowUpDown, MapPin, XIcon } fro
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import MapView from "../components/MapView";
+import RouteMapView from "../components/RouteMapView";
+import { useQuery } from "@tanstack/react-query";
+import { BusRoute } from "@shared/schema";
 
 const RoutePlanner: React.FC = () => {
   const [startLocation, setStartLocation] = useState("");
@@ -24,6 +26,11 @@ const RoutePlanner: React.FC = () => {
   const [isArrival, setIsArrival] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
   const [routeResults, setRouteResults] = useState<any[] | null>(null);
+  
+  // Cargar todas las rutas para poder mostrarlas en el mapa
+  const { data: routes } = useQuery<BusRoute[]>({
+    queryKey: ['/api/routes'],
+  });
 
   const handleSwapLocations = () => {
     const temp = startLocation;
