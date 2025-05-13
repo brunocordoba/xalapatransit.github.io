@@ -13,11 +13,11 @@
 --card-foreground: 20 14.3% 4.1%;
 --border: 20 5.9% 90%;
 --input: 20 5.9% 90%;
---primary: 209 100% 37%; /* #0056A4 Azul de Orizo.fr */
+--primary: 209 100% 32%; /* #0056A4 Azul de Orizo.fr */
 --primary-foreground: 0 0% 100%;
 --secondary: 60 4.8% 95.9%;
 --secondary-foreground: 24 9.8% 10%;
---accent: 48 96% 53%; /* #F9CD00 Amarillo de Orizo.fr */
+--accent: 114 76% 40%; /* #4caf50 Verde de Orizo.fr */
 --accent-foreground: 24 9.8% 10%;
 --destructive: 0 84.2% 60.2%;
 --destructive-foreground: 60 9.1% 97.8%;
@@ -59,7 +59,7 @@
 
 /* Estilos específicos de Orizo.fr */
 .orizo-itinerary-card {
-  border-left: 4px solid #0056A4;
+  border-left: 4px solid #4caf50;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
@@ -76,8 +76,8 @@
 }
 
 .orizo-walk-badge {
-  background-color: #F9CD00;
-  color: #333;
+  background-color: #4caf50;
+  color: white;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;

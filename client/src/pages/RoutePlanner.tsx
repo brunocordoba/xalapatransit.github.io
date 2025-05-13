@@ -91,8 +91,8 @@ const RoutePlanner: React.FC = () => {
         <div className="col-span-1">
           <div className="space-y-4">
             <Card className="shadow-lg overflow-hidden border-0">
-              <CardHeader className="pb-2 bg-[#0056A4] text-white">
-                <CardTitle className="text-xl text-center font-bold">Mi Itinerario</CardTitle>
+              <CardHeader className="pb-2 bg-[#4caf50] text-white">
+                <CardTitle className="text-xl text-center font-bold">ITINERARIOS</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 pt-6">
                 <div className="relative">
@@ -279,7 +279,7 @@ const RoutePlanner: React.FC = () => {
                 <Button 
                   onClick={handleCalculateRoute}
                   disabled={!startLocation || !endLocation || isCalculating}
-                  className="w-full py-3 text-base font-bold bg-[#F9CD00] text-gray-800 hover:bg-[#e8bf00] rounded-full shadow-md uppercase"
+                  className="w-full py-3 text-base font-bold bg-[#4caf50] text-white hover:bg-[#3d8b40] rounded-none shadow-md uppercase"
                 >
                   {isCalculating ? "Calculando..." : "BUSCAR ITINERARIO"}
                 </Button>
