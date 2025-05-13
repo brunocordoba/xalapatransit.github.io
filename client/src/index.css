@@ -86,25 +86,64 @@
   height: 2rem;
 }
 
-/* Estilos para las rutas de autobús similar a Mapaton.org */
+/* Estilos de rutas y paradas de autobús como en orizo.fr */
 .route-line {
   stroke-dasharray: none;
   transition: all 0.2s ease;
 }
 
+.route-line.orizo-style {
+  transition: all 0.3s ease;
+}
+
 .route-line.selected {
   filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.7));
   stroke-width: 6;
-  animation: pulse-route 2s infinite;
+}
+
+/* Rutas seleccionadas en estilo orizo.fr son negras */
+.route-line.selected.orizo-style {
+  stroke-width: 8;
+  filter: none;
 }
 
 .route-outline {
   transition: all 0.2s ease;
 }
 
+.route-outline.orizo-style {
+  transition: all 0.3s ease;
+}
+
 .route-shadow {
   filter: blur(2px);
   opacity: 0.2;
+}
+
+.route-shadow.orizo-style {
+  filter: blur(1px);
+  opacity: 0.25;
+}
+
+/* Estilos para paradas de autobús como en orizo.fr */
+.bus-stop-icon.orizo-style {
+  z-index: 600 !important;
+  transition: all 0.2s ease;
+}
+
+.bus-stop-icon.orizo-style:hover {
+  transform: scale(1.2);
+  z-index: 1000 !important;
+}
+
+/* Paradas terminales (más grandes con borde blanco) */
+.terminal-stop.orizo-style {
+  z-index: 700 !important;
+}
+
+/* Paradas normales (puntos blancos con borde verde) */
+.regular-stop.orizo-style {
+  z-index: 650 !important;
 }
 
 /* Animación de pulso suave para la ruta seleccionada */

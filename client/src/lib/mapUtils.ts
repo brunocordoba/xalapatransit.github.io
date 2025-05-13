@@ -78,29 +78,32 @@ export function initializeMap(container: HTMLElement, center: [number, number], 
   return map;
 }
 
-// Get bus stop icon - Estilo Mapaton
+// Get bus stop icon - Estilo orizo.fr
 export function getBusStopIcon(isTerminal: boolean | null, color: string = '#ffffff'): L.DivIcon {
   // En caso de que isTerminal sea null, tratarlo como false
   const isActuallyTerminal = isTerminal === true;
   
-  // Tamaños según Mapaton
-  const size = isActuallyTerminal ? 18 : 12;
+  // Tamaños según orizo.fr (las paradas terminales son más grandes)
+  const size = isActuallyTerminal ? 22 : 14;
   
-  // HTML para el icono de la parada de autobús
-  // Estilo exactamente como en Mapaton: puntos blancos con borde del color de la ruta
-  const borderColor = isActuallyTerminal ? color : 'rgba(0,0,0,0.5)';
-  const borderWidth = isActuallyTerminal ? 3 : 2;
+  // Color de relleno y borde para el estilo orizo.fr
+  // - Paradas normales: círculos blancos con borde del color de la ruta
+  // - Paradas terminales: círculos del color de la ruta con borde blanco
+  const fillColor = isActuallyTerminal ? '#FFFFFF' : '#FFFFFF';
+  const borderColor = '#4caf50'; // Verde o el color seleccionado
+  const borderWidth = isActuallyTerminal ? 4 : 2;
   
   return L.divIcon({
-    className: 'bus-stop-icon',
+    className: 'bus-stop-icon orizo-style',
     html: `
       <div 
-        class="rounded-full bg-white shadow-xl" 
+        class="rounded-full shadow-xl" 
         style="
           width: ${size}px; 
           height: ${size}px; 
+          background-color: ${fillColor};
           border: ${borderWidth}px solid ${borderColor};
-          box-shadow: 0 0 8px rgba(0,0,0,0.4);
+          box-shadow: 0 0 4px rgba(0,0,0,0.3);
         "
       ></div>
     `,
@@ -177,16 +180,16 @@ export function drawRoutes(
         
         console.log(`Dibujando ruta ${route.id} con ${leafletCoords.length} puntos`);
         
-        // 1. Dibujar la sombra (capa inferior)
+        // 1. Dibujar la sombra (capa inferior - estilo orizo.fr)
         const shadowLine = L.polyline(leafletCoords, {
-          color: 'rgba(0,0,0,0.5)',
+          color: 'rgba(0,0,0,0.3)',
           weight: 14,
-          opacity: 0.4,
-          lineCap: 'round',
+          opacity: 0.3,
+          lineCap: 'butt',
           lineJoin: 'round',
           // Aumentar smoothFactor para simplificar aún más al renderizar
-          smoothFactor: 2.0,
-          className: 'route-shadow',
+          smoothFactor: 1.0,
+          className: 'route-shadow orizo-style',
           // Reducir el impacto de las actualizaciones visuales
           interactive: false, // Solo la línea principal será interactiva
           renderer: new L.SVG({ padding: 0 })
@@ -196,24 +199,25 @@ export function drawRoutes(
         const routeOutline = L.polyline(leafletCoords, {
           color: 'white',
           weight: 10,
-          opacity: 0.8,
-          lineCap: 'round',
+          opacity: 0.9,
+          lineCap: 'butt',
           lineJoin: 'round',
-          smoothFactor: 2.0,
-          className: 'route-outline',
+          smoothFactor: 1.0,
+          className: 'route-outline orizo-style',
           interactive: false,
           renderer: new L.SVG({ padding: 0 })
         });
         
-        // 3. Dibujar la línea de la ruta (capa superior)
+        // 3. Dibujar la línea de la ruta estilo orizo.fr
+        // Para rutas seleccionadas usamos #4caf50 (verde de orizo.fr) o negro (#000000)
         const routeLine = L.polyline(leafletCoords, {
-          color: route.color || '#3388ff',
-          weight: 6,
+          color: route.color || '#4caf50', // Verde por defecto, o negro para rutas seleccionadas
+          weight: 8,
           opacity: 1.0,
-          lineCap: 'round',
+          lineCap: 'butt',
           lineJoin: 'round',
-          smoothFactor: 2.0,
-          className: 'route-line',
+          smoothFactor: 1.0,
+          className: 'route-line orizo-style',
           interactive: true,
           renderer: new L.SVG({ padding: 0 })
         });
@@ -351,22 +355,24 @@ export function highlightRoute(
         // Aplicar estilo destacado
         console.log(`Aplicando estilo destacado a la ruta ${selectedRouteId}`);
         
+        // Estilo orizo.fr para ruta seleccionada (línea negra)
         routeLayers.route.setStyle({
           weight: 10, 
           opacity: 1.0,
-          className: 'route-line selected'
+          color: '#000000', // Negro para ruta seleccionada (como en orizo.fr)
+          className: 'route-line selected orizo-style'
         });
         
         routeLayers.outline.setStyle({
           weight: 14,
           opacity: 0.9,
-          className: 'route-outline selected'
+          className: 'route-outline selected orizo-style'
         });
         
         routeLayers.shadow.setStyle({
-          weight: 18,
-          opacity: 0.5,
-          className: 'route-shadow selected'
+          weight: 16,
+          opacity: 0.4,
+          className: 'route-shadow selected orizo-style'
         });
         
         // Agregar animación de pulsación
@@ -431,7 +437,13 @@ export function addBusStops(
   stopsToShow.forEach((stop) => {
     // Asegurar que isTerminal es un booleano
     const isTerminal = stop.isTerminal === true;
-    const icon = getBusStopIcon(isTerminal, color);
+    
+    // En orizo.fr, las paradas terminales tienen un estilo diferente
+    // y las paradas regulares tienen un borde del color de la ruta
+    // Aseguramos usar el color correcto para el estilo orizo.fr
+    const stopColor = isTerminal ? color : '#4caf50'; // Verde de orizo.fr para paradas regulares
+    
+    const icon = getBusStopIcon(isTerminal, stopColor);
     const lat = parseFloat(stop.latitude);
     const lng = parseFloat(stop.longitude);
     
@@ -440,13 +452,20 @@ export function addBusStops(
       return;
     }
     
-    // Crear el marcador y añadirlo al grupo de capas en lugar de directamente al mapa
+    // Crear el marcador con estilo orizo.fr
     const marker = L.marker([lat, lng], { 
       icon,
-      // Reducir interacciones para mejorar rendimiento
+      // Hacer las paradas interactivas como en orizo.fr
       interactive: true,
       bubblingMouseEvents: true
     }).addTo(markerGroup);
+    
+    // Añadir clase CSS si está disponible el elemento
+    const element = marker.getElement();
+    if (element) {
+      element.classList.add(isTerminal ? 'terminal-stop' : 'regular-stop');
+      element.classList.add('orizo-style');
+    }
     
     // Crear el contenido del popup una vez y reutilizarlo
     const popupContent = `
