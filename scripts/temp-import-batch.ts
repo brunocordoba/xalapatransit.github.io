@@ -33,7 +33,7 @@ async function processRoutesInRange() {
     console.log('Iniciando procesamiento de rutas en rango...');
     
     // Rango de rutas a procesar
-    const minRouteId = 46;
+    const minRouteId = 50;
     const maxRouteId = 50;
     
     console.log(`Procesando rutas del ${minRouteId} al ${maxRouteId}...`);
