@@ -86,23 +86,24 @@ export function getBusStopIcon(isTerminal: boolean | null, color: string = '#fff
   // Tamaños según la imagen de referencia (círculos blancos uniformes)
   const size = isActuallyTerminal ? 16 : 12;
   
-  // Color de relleno y borde para el estilo de la imagen
-  // Todas las paradas son círculos blancos con borde amarillo
+  // Color de relleno y borde para el estilo de la imagen de referencia
+  // Las paradas son círculos blancos con borde grueso del color de la ruta
   const fillColor = '#FFFFFF';
-  const borderColor = '#FFDD00'; // Amarillo como la ruta
-  const borderWidth = 2;
+  // La imagen muestra que las paradas tienen borde del color de la ruta 
+  const borderColor = color; // Usar el color que viene como parámetro
+  const borderWidth = 4; // Borde más grueso como se muestra en la imagen
   
   return L.divIcon({
     className: 'bus-stop-icon orizo-style',
     html: `
       <div 
-        class="rounded-full shadow-xl" 
+        class="${isActuallyTerminal ? 'terminal-stop' : 'regular-stop'} orizo-style rounded-full shadow-xl" 
         style="
           width: ${size}px; 
           height: ${size}px; 
           background-color: ${fillColor};
           border: ${borderWidth}px solid ${borderColor};
-          box-shadow: 0 0 4px rgba(0,0,0,0.3);
+          box-shadow: 0 0 4px rgba(0,0,0,0.5);
         "
       ></div>
     `,
@@ -437,10 +438,10 @@ export function addBusStops(
     // Asegurar que isTerminal es un booleano
     const isTerminal = stop.isTerminal === true;
     
-    // En orizo.fr, las paradas terminales tienen un estilo diferente
-    // y las paradas regulares tienen un borde del color de la ruta
-    // Aseguramos usar el color correcto para el estilo orizo.fr
-    const stopColor = isTerminal ? color : '#4caf50'; // Verde de orizo.fr para paradas regulares
+    // Según la imagen, las paradas tienen bordes del color de la ruta
+    // Usamos el color de la ruta para el borde de las paradas
+    // Si es una parada terminal, usamos un color más oscuro o el mismo
+    const stopColor = route.color || '#1E88E5';
     
     const icon = getBusStopIcon(isTerminal, stopColor);
     const lat = parseFloat(stop.latitude);
