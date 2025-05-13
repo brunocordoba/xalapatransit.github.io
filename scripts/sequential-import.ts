@@ -383,8 +383,8 @@ async function processRouteFromShapefile(
         }
       } else {
         console.log(`No se encontró archivo stops.zip, generando paradas automáticamente...`);
-        // Descomentando esta línea, podemos generar o no generar paradas automáticas
-        stopsCount = // await generateAutomaticStops(route.id, routeCoordinates);
+        // Generamos paradas automáticas
+        stopsCount = await generateAutomaticStops(route.id, routeCoordinates);
       }
     } catch (error) {
       console.error(`Error procesando paradas para ruta ${routeId}:`, error);
