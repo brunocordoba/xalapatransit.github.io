@@ -47,12 +47,19 @@ export const insertBusStopSchema = createInsertSchema(busStops).omit({
   id: true,
 });
 
+export const insertBusRouteStopSchema = createInsertSchema(busRouteStops).omit({
+  id: true,
+});
+
 // Create types
 export type BusRoute = typeof busRoutes.$inferSelect;
 export type InsertBusRoute = z.infer<typeof insertBusRouteSchema>;
 
 export type BusStop = typeof busStops.$inferSelect;
 export type InsertBusStop = z.infer<typeof insertBusStopSchema>;
+
+export type BusRouteStop = typeof busRouteStops.$inferSelect;
+export type InsertBusRouteStop = z.infer<typeof insertBusRouteStopSchema>;
 
 // Define GeoJSON types for the front-end
 export type GeoJSONFeature = {
