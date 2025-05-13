@@ -12,6 +12,9 @@ const ROUTE_COLOR_MAP: Record<string, string> = {
   'Oeste': '#9B59B6'  // Morado
 };
 
+// Máximo número de rutas a importar (para pruebas)
+const MAX_ROUTES = 10;
+
 function getRandomColor(): string {
   const colors = Object.values(ROUTE_COLOR_MAP);
   return colors[Math.floor(Math.random() * colors.length)];
@@ -175,13 +178,20 @@ async function importAllCorrectedRoutes() {
     // Ignorar archivos de paradas - se manejan junto con las rutas
   }
   
-  console.log(`Encontradas ${routes.size} rutas para importar`);
+  console.log(`Encontradas ${routes.size} rutas para importar. Limitando a ${MAX_ROUTES} para pruebas.`);
   
   // Segunda pasada: procesar cada ruta
   let importedRoutes = 0;
   let importedStops = 0;
   
-  for (const [routeId, routeInfo] of routes.entries()) {
+  // Convertir a array para poder limitar y ordenar
+  const routesArray = Array.from(routes.entries());
+  // Ordenar por ID de ruta
+  routesArray.sort((a, b) => a[0] - b[0]);
+  // Limitar al máximo especificado
+  const limitedRoutes = routesArray.slice(0, MAX_ROUTES);
+  
+  for (const [routeId, routeInfo] of limitedRoutes) {
     console.log(`Procesando ruta ${routeId}...`);
     
     for (const fileInfo of routeInfo.files) {
@@ -296,7 +306,6 @@ async function importRouteWithStops(
           }
           
           const coordinates = stopGeometry.coordinates;
-          const stopId = routeId * 10000 + i + 1; // Generar ID único para la parada
           
           await db.insert(busStops).values({
             routeId: routeId,
