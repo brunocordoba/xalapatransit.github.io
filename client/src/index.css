@@ -164,6 +164,9 @@
 .leaflet-container {
   background-color: #f5f5f5 !important;
   transition: background-color 0.3s ease;
+  height: 100% !important;
+  width: 100% !important;
+  min-height: 300px;
 }
 
 /* Estilo para el botón de borrar selección */
