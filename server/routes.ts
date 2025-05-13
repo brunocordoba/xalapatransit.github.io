@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { getUniqueRouteColor } from "../client/src/lib/constants";
 import type { BusStop } from "../shared/schema";
+import { PlanCoordinates, planRoute } from "./algorithms/pathFinder";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API routes for bus routes
@@ -123,57 +124,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Se requieren ubicaciones de origen y destino' });
       }
       
-      // En un sistema real, aquí se haría el cálculo de la ruta
-      // Por ahora, retornamos datos de ejemplo
+      // Extraer las coordenadas
+      const originLat = parseFloat(from.latitude || from.lat);
+      const originLng = parseFloat(from.longitude || from.lng);
+      const destinationLat = parseFloat(to.latitude || to.lat);
+      const destinationLng = parseFloat(to.longitude || to.lng);
       
-      // Simulamos dos posibles rutas
+      // Validar coordenadas
+      if (isNaN(originLat) || isNaN(originLng) || isNaN(destinationLat) || isNaN(destinationLng)) {
+        return res.status(400).json({ message: 'Coordenadas inválidas' });
+      }
+      
+      // Configurar coordenadas para el planificador
+      const planCoordinates: PlanCoordinates = {
+        originLat,
+        originLng,
+        destinationLat,
+        destinationLng
+      };
+      
+      // Obtener todas las rutas y paradas
       const routes = await storage.getAllRoutes();
       const stops = await storage.getAllStops();
       
-      // Seleccionamos algunas rutas y paradas aleatorias para la demostración
-      const randomRoutes = routes.slice(0, Math.min(5, routes.length));
+      // Calcular hora de salida
+      let startTime = new Date();
+      if (departureTime) {
+        const [hours, minutes] = departureTime.split(':').map(Number);
+        startTime.setHours(hours, minutes, 0);
+      }
       
-      const planResults = [
-        { 
-          id: 1, 
-          duration: "45 min", 
-          startTime: departureTime || "12:00", 
-          endTime: calculateEndTime(departureTime || "12:00", 45),
-          steps: [
-            { type: "walk", duration: "5 min", description: "Caminar hasta parada " + getRandomStop(stops)?.name },
-            { 
-              type: "bus", 
-              routeNumber: randomRoutes[0]?.shortName || "R1", 
-              routeName: randomRoutes[0]?.name || "Ruta 1", 
-              duration: "35 min", 
-              startStop: getRandomStop(stops)?.name || "Terminal", 
-              endStop: getRandomStop(stops)?.name || "Centro" 
-            },
-            { type: "walk", duration: "5 min", description: "Caminar hasta destino" }
-          ]
-        },
-        { 
-          id: 2, 
-          duration: "50 min", 
-          startTime: departureTime ? calculateEndTime(departureTime, 15, true) : "12:15", 
-          endTime: departureTime ? calculateEndTime(departureTime, 65) : "13:05",
-          steps: [
-            { type: "walk", duration: "5 min", description: "Caminar hasta parada " + getRandomStop(stops)?.name },
-            { 
-              type: "bus", 
-              routeNumber: randomRoutes[1]?.shortName || "R2", 
-              routeName: randomRoutes[1]?.name || "Ruta 2", 
-              duration: "40 min", 
-              startStop: getRandomStop(stops)?.name || "Terminal", 
-              endStop: getRandomStop(stops)?.name || "Centro" 
-            },
-            { type: "walk", duration: "5 min", description: "Caminar hasta destino" }
-          ]
-        }
-      ];
+      console.log(`Planificando ruta desde [${originLat}, ${originLng}] hasta [${destinationLat}, ${destinationLng}]`);
       
-      res.json(planResults);
+      // Usar nuestro algoritmo de planificación
+      const results = await planRoute(
+        planCoordinates,
+        stops,
+        routes,
+        startTime,
+        3 // Máximo 3 resultados
+      );
+      
+      if (results.length === 0) {
+        return res.status(404).json({ message: 'No se encontraron rutas entre los puntos especificados' });
+      }
+      
+      res.json(results);
     } catch (error) {
+      console.error('Error al planificar ruta:', error);
       const message = error instanceof Error ? error.message : 'Unknown error';
       res.status(500).json({ message });
     }

@@ -28,6 +28,7 @@ export const busStops = pgTable("bus_stops", {
   isTerminal: boolean("is_terminal").default(false),
   terminalType: text("terminal_type").default(""),
   location: jsonb("location"),
+  order: integer("order").default(0), // Añadimos el orden secuencial de la parada en la ruta
 });
 
 // Schema adicional para paradas de ruta que incluye GeoJSON
