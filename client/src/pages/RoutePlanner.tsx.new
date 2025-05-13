@@ -155,7 +155,7 @@ const RoutePlanner: React.FC = () => {
                               className="w-full justify-start text-left font-normal border-2"
                             >
                               <CalendarIcon className="mr-2 h-4 w-4" />
-                              {date ? format(date, "PPP", { locale: esES }) : <span>Seleccionar fecha</span>}
+                              {date ? format(date, "PPP", { locale: es }) : <span>Seleccionar fecha</span>}
                             </Button>
                           </PopoverTrigger>
                           <PopoverContent className="w-auto p-0" align="start">
@@ -207,7 +207,7 @@ const RoutePlanner: React.FC = () => {
                               className="w-full justify-start text-left font-normal border-2"
                             >
                               <CalendarIcon className="mr-2 h-4 w-4" />
-                              {date ? format(date, "PPP", { locale: esES }) : <span>Seleccionar fecha</span>}
+                              {date ? format(date, "PPP", { locale: es }) : <span>Seleccionar fecha</span>}
                             </Button>
                           </PopoverTrigger>
                           <PopoverContent className="w-auto p-0" align="start">
@@ -326,7 +326,7 @@ const RoutePlanner: React.FC = () => {
         <div className="col-span-1 lg:col-span-2">
           <Card className="h-[calc(100vh-2rem)]">
             <CardContent className="p-0 h-full">
-              <MapView />
+              <MapView routes={[]} selectedRouteId={null} toggleSidebar={() => {}} isSidebarVisible={false} isMobile={false} onClearSelection={() => {}} onToggleAllRoutes={() => {}} showAllRoutes={false} />
             </CardContent>
           </Card>
         </div>
