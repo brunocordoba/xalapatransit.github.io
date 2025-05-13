@@ -315,8 +315,8 @@ export default function RouteMapView({
   };
   
   return (
-    <div className="flex-grow relative">
-      <div ref={mapContainerRef} className="h-full w-full" />
+    <div className="flex-grow relative h-full w-full">
+      <div ref={mapContainerRef} style={{ height: '100%', width: '100%' }} />
       
       {/* Map Controls */}
       <div className="absolute top-4 right-4 flex flex-col space-y-2">

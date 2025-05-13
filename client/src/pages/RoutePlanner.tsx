@@ -361,8 +361,8 @@ const RoutePlanner: React.FC = () => {
 
         {/* Mapa */}
         <div className="col-span-1 lg:col-span-2">
-          <Card className="h-[calc(100vh-2rem)] orizo-card-shadow border-0">
-            <CardContent className="p-0 h-full">
+          <Card className="h-[calc(100vh-2rem)] orizo-card-shadow border-0 overflow-hidden">
+            <CardContent className="p-0 h-full w-full">
               <RouteMapView 
                 routes={routes || []} 
                 selectedRoutes={routeResults ? routeResults.flatMap(route => 
