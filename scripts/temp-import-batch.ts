@@ -33,8 +33,8 @@ async function processRoutesInRange() {
     console.log('Iniciando procesamiento de rutas en rango...');
     
     // Rango de rutas a procesar
-    const minRouteId = 59;
-    const maxRouteId = 59;
+    const minRouteId = 64;
+    const maxRouteId = 64;
     
     console.log(`Procesando rutas del ${minRouteId} al ${maxRouteId}...`);
     
@@ -560,7 +560,7 @@ async function main() {
     
     // Si hay rutas omitidas, sugerir próximo rango
     if (result.skippedCount > 0) {
-      const nextStartRoute = 59 + 1;
+      const nextStartRoute = 64 + 1;
       const nextEndRoute = nextStartRoute + 9; // Procesar 10 rutas más
       console.log(`\nPara continuar, ejecutar: bash scripts/import-routes-batch.sh ${nextStartRoute} ${nextEndRoute}`);
     }
