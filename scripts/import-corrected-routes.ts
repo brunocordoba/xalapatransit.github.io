@@ -114,7 +114,7 @@ async function importAllCorrectedRoutes() {
   await db.delete(busStops);
   await db.delete(busRoutes);
   
-  const baseDir = './tmp/corregidos/Corregidos';
+  const baseDir = './tmp/corregidos2/Corregidos2';
   
   if (!fs.existsSync(baseDir)) {
     throw new Error(`Directorio no encontrado: ${baseDir}`);
@@ -162,14 +162,14 @@ async function importAllCorrectedRoutes() {
       type = 'vuelta';
       isRoute = true;
     }
-    else if (file.match(/^\d+_routes_ida\.geojson$/)) {
-      // Formato: 020_routes_ida.geojson
+    else if (file.match(/^\d+_routes?_ida\.geojson$/)) {
+      // Formato: 020_routes_ida.geojson o 020_route_ida.geojson
       routeId = parseInt(file.split('_')[0]);
       type = 'ida';
       isRoute = true;
     }
-    else if (file.match(/^\d+_routes_vuelta\.geojson$/)) {
-      // Formato: 020_routes_vuelta.geojson
+    else if (file.match(/^\d+_routes?_vuelta\.geojson$/)) {
+      // Formato: 020_routes_vuelta.geojson o 020_route_vuelta.geojson
       routeId = parseInt(file.split('_')[0]);
       type = 'vuelta';
       isRoute = true;
@@ -192,13 +192,13 @@ async function importAllCorrectedRoutes() {
       type = 'vuelta';
       isStops = true;
     }
-    else if (file.match(/^\d+_stops_ida\.geojson$/)) {
+    else if (file.match(/^\d+_stops?_ida\.geojson$/)) {
       // Formato: 020_stops_ida.geojson
       routeId = parseInt(file.split('_')[0]);
       type = 'ida';
       isStops = true;
     }
-    else if (file.match(/^\d+_stops_vuelta\.geojson$/)) {
+    else if (file.match(/^\d+_stops?_vuelta\.geojson$/)) {
       // Formato: 020_stops_vuelta.geojson
       routeId = parseInt(file.split('_')[0]);
       type = 'vuelta';
@@ -277,8 +277,8 @@ async function importAllCorrectedRoutes() {
   let importedVariants = 0;
   let importedStops = 0;
   
-  // Importar todas las rutas
-  const MAX_ROUTES_TO_IMPORT = routesToProcess.length;
+  // Importar un conjunto pequeño de rutas para probar
+  const MAX_ROUTES_TO_IMPORT = 10; // Limitamos a 10 rutas para evitar tiempos de espera
   
   // Ordenar rutas por ID
   routesToProcess.sort((a, b) => a.id - b.id);
