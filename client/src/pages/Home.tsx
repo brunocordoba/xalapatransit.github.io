@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Header from '@/components/Header';
 import SidePanel from '@/components/SidePanel';
-import MapView from '@/components/MapView';
+import RouteMapView from '@/components/RouteMapView';
 import RouteDetail from '@/components/RouteDetail';
 import { BusRoute, BusStop } from '@shared/schema';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -89,16 +89,10 @@ export default function Home() {
           isLoading={routesLoading}
         />
         
-        <MapView 
+        <RouteMapView 
           routes={routes || []}
-          selectedRouteId={selectedRouteId}
-          toggleSidebar={toggleSidebar}
-          isSidebarVisible={showSidebar}
-          isMobile={isMobile}
-          onRouteSelect={handleRouteSelect}
-          onClearSelection={handleClearSelection}
-          onToggleAllRoutes={toggleAllRoutes}
-          showAllRoutes={showAllRoutes}
+          selectedRoutes={selectedRouteId ? [selectedRouteId] : showAllRoutes ? routes?.map(r => r.id) || [] : []}
+          showStops={true}
         />
         
 

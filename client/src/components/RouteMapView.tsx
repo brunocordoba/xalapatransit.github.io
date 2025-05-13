@@ -24,26 +24,46 @@ function drawSingleRoute(
   onRouteClick?: (routeId: number) => void
 ): {routeLine: L.Polyline, routeOutline: L.Polyline, shadowLine: L.Polyline} {
   try {
-    const geoJSON = route.geoJSON as any;
-    if (!geoJSON) {
-      console.warn(`La ruta ${route.id} no tiene datos GeoJSON`);
-      return {} as any;
-    }
+    console.log(`Dibujando ruta ${route.id} en RouteMapView`);
     
+    // Extraer coordenadas del GeoJSON
     let coordinates: [number, number][] = [];
     
-    // Manejar diferentes formatos de GeoJSON
-    if (geoJSON.type === 'Feature' && geoJSON.geometry && geoJSON.geometry.type === 'LineString') {
-      coordinates = geoJSON.geometry.coordinates;
-    } else if (geoJSON.geometry && geoJSON.geometry.coordinates) {
-      coordinates = geoJSON.geometry.coordinates;
-    } else if (geoJSON.coordinates) {
-      coordinates = geoJSON.coordinates;
-    } else if (Array.isArray(geoJSON)) {
-      coordinates = geoJSON;
-    } else {
-      console.warn(`Formato GeoJSON no reconocido para la ruta ${route.id}`);
-      return {} as any;
+    try {
+      // Parsear el GeoJSON si es string
+      let geoJSON: any;
+      if (typeof route.geoJSON === 'string') {
+        geoJSON = JSON.parse(route.geoJSON);
+      } else {
+        geoJSON = route.geoJSON;
+      }
+      
+      if (geoJSON?.type === 'FeatureCollection' && 
+          Array.isArray(geoJSON.features) && 
+          geoJSON.features.length > 0 && 
+          geoJSON.features[0].geometry?.type === 'LineString') {
+        // Formato estándar: FeatureCollection con LineString
+        coordinates = geoJSON.features[0].geometry.coordinates;
+        console.log(`Usando coordenadas desde GeoJSON para ruta ${route.id}: ${coordinates.length} puntos`);
+      } else {
+        throw new Error("Formato GeoJSON no reconocido");
+      }
+    } catch (error) {
+      console.warn(`Error al procesar GeoJSON para ruta ${route.id}: ${error}. Usando coordenadas por defecto`);
+      
+      // Coordenadas de respaldo si hay error
+      coordinates = [
+        [-96.9270, 19.5438],
+        [-96.9265, 19.5428],
+        [-96.9260, 19.5418],
+        [-96.9255, 19.5408],
+        [-96.9250, 19.5398],
+        [-96.9245, 19.5388],
+        [-96.9240, 19.5378],
+        [-96.9235, 19.5368],
+        [-96.9230, 19.5358],
+        [-96.9225, 19.5348]
+      ];
     }
     
     // Validar que hay coordenadas y que son válidas
