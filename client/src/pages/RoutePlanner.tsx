@@ -96,14 +96,14 @@ const RoutePlanner: React.FC = () => {
               </CardHeader>
               <CardContent className="space-y-4 pt-6">
                 <div className="relative">
-                  <div className="absolute left-0 top-0 bottom-0 w-12 bg-[#0056A4] rounded-l-lg flex items-center justify-center">
+                  <div className="absolute left-0 top-0 bottom-0 w-12 bg-[#4caf50] rounded-l-lg flex items-center justify-center">
                     <MapPin className="h-5 w-5 text-white" />
                   </div>
                   <Input 
                     type="text" 
                     value={startLocation}
                     onChange={(e) => setStartLocation(e.target.value)}
-                    className="pl-14 h-12 border-2 border-[#0056A4] focus:ring-[#0056A4] focus:border-[#0056A4] rounded-lg" 
+                    className="pl-14 h-12 border-2 border-[#4caf50] focus:ring-[#4caf50] focus:border-[#4caf50] rounded-lg" 
                     placeholder="¿Desde dónde sales?" 
                   />
                   {startLocation && (
@@ -122,22 +122,22 @@ const RoutePlanner: React.FC = () => {
                   <Button 
                     variant="outline" 
                     size="icon" 
-                    className="rounded-full w-10 h-10 p-0 bg-white border-2 border-[#0056A4] shadow-md hover:bg-gray-50"
+                    className="rounded-full w-10 h-10 p-0 bg-white border-2 border-[#4caf50] shadow-md hover:bg-gray-50"
                     onClick={handleSwapLocations}
                   >
-                    <ArrowUpDown className="h-5 w-5 text-[#0056A4]" />
+                    <ArrowUpDown className="h-5 w-5 text-[#4caf50]" />
                   </Button>
                 </div>
                 
                 <div className="relative">
-                  <div className="absolute left-0 top-0 bottom-0 w-12 bg-[#F9CD00] rounded-l-lg flex items-center justify-center">
+                  <div className="absolute left-0 top-0 bottom-0 w-12 bg-[#4caf50] rounded-l-lg flex items-center justify-center">
                     <MapPin className="h-5 w-5 text-gray-800" />
                   </div>
                   <Input 
                     type="text" 
                     value={endLocation}
                     onChange={(e) => setEndLocation(e.target.value)}
-                    className="pl-14 h-12 border-2 border-[#F9CD00] focus:ring-[#F9CD00] focus:border-[#F9CD00] rounded-lg" 
+                    className="pl-14 h-12 border-2 border-[#4caf50] focus:ring-[#4caf50] focus:border-[#4caf50] rounded-lg" 
                     placeholder="¿A dónde vas?" 
                   />
                   {endLocation && (

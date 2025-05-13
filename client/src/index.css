@@ -214,35 +214,35 @@
 
 /* Estilos del formulario de Orizo.fr */
 .orizo-select-trigger {
-  @apply border-2 border-[#0056A4] rounded-lg;
+  @apply border-2 border-[#4caf50] rounded-lg;
 }
 
 .orizo-date-button {
-  @apply border-2 border-[#0056A4] rounded-lg text-[#0056A4];
+  @apply border-2 border-[#4caf50] rounded-lg text-[#4caf50];
 }
 
 .orizo-calculate-button {
-  @apply bg-[#0056A4] text-white hover:bg-[#004385] font-medium;
+  @apply bg-[#4caf50] text-white hover:bg-[#3d8b40] font-medium;
 }
 
 .orizo-card-shadow {
-  box-shadow: 0 4px 12px rgba(0, 86, 164, 0.15);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.15);
 }
 
 /* Estilos para selectores de fecha y tiempo */
 [class*="CalendarIcon"] {
-  @apply text-[#0056A4];
+  @apply text-[#4caf50];
 }
 
 [class*="Clock3Icon"], 
 [class*="Clock10Icon"] {
-  @apply text-[#0056A4];
+  @apply text-[#4caf50];
 }
 
 button[class*="border-2"] {
-  @apply border-[#0056A4] rounded-lg;
+  @apply border-[#4caf50] rounded-lg;
 }
 
 div[class*="SelectTrigger"] {
-  @apply border-[#0056A4] rounded-lg;
+  @apply border-[#4caf50] rounded-lg;
 }
