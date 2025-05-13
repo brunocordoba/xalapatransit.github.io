@@ -120,48 +120,7 @@ export default function SidePanel({
       </div>
       
       <div className="flex-grow overflow-y-auto">
-        {/* Popular Routes Section */}
-        <div className="p-4 border-b">
-          <h2 className="font-semibold text-lg mb-3">Rutas Populares</h2>
-          <div className="space-y-2">
-            {isLoading ? (
-              // Skeleton loaders for popular routes
-              Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="p-3 rounded-lg border border-gray-200 flex items-center space-x-3">
-                  <Skeleton className="w-8 h-8 rounded-full" />
-                  <div className="space-y-2 flex-1">
-                    <Skeleton className="h-4 w-4/5" />
-                    <Skeleton className="h-3 w-3/5" />
-                  </div>
-                </div>
-              ))
-            ) : (
-              popularRoutes.length > 0 ? (
-                popularRoutes.map(route => (
-                  <div 
-                    key={route.id} 
-                    className={`p-3 rounded-lg border ${selectedRouteId === route.id ? 'bg-blue-50 border-blue-300' : 'border-gray-200 hover:bg-gray-50'} 
-                              cursor-pointer flex items-center space-x-3`}
-                    onClick={() => onRouteSelect(route.id)}
-                  >
-                    <div 
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold"
-                      style={{ backgroundColor: route.color }}
-                    >
-                      {route.shortName}
-                    </div>
-                    <div>
-                      <h3 className="font-medium">{route.name}</h3>
-                      <p className="text-sm text-gray-500">Cada {route.frequency} · {route.stopsCount} paradas</p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-gray-500 text-sm">No hay rutas populares disponibles.</p>
-              )
-            )}
-          </div>
-        </div>
+
         
         {/* All Routes Section */}
         <div className="p-4 border-b">
