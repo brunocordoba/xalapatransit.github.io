@@ -124,9 +124,6 @@ async function main() {
     await processRoutes(startId, endId);
   } catch (error) {
     console.error('Error en el script principal:', error);
-  } finally {
-    await pool.end();
-    console.log('Conexión a la base de datos cerrada.');
   }
 }
 

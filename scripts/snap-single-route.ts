@@ -318,8 +318,6 @@ async function main() {
     console.log(`Resultado: ${success ? 'Éxito' : 'Error'}`);
   } catch (error) {
     console.error('Error general:', error);
-  } finally {
-    await pool.end();
   }
 }
 
