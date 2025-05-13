@@ -69,49 +69,67 @@ async function convertShapefileToGeoJSON(shapefilePath: string, outputPath: stri
   try {
     console.log(`Extrayendo paradas del ZIP: ${path.dirname(shapefilePath)}`);
     
-    // Obtener la ruta del ZIP original
-    const zipPath = path.dirname(shapefilePath).includes('stops_') 
-      ? path.join(path.dirname(path.dirname(shapefilePath)), 'stops.zip')
-      : path.join(path.dirname(shapefilePath), 'stops.zip');
-    
-    console.log(`Usando archivo ZIP: ${zipPath}`);
-    
-    // Cargar el ZIP directamente - el shapefilePath ya es un archivo extraído del ZIP
-    const zip = new AdmZip(zipPath);
+    // Vamos a usar directamente las coordenadas
     
     // Crear un GeoJSON básico con los puntos de parada
-    // Para la ruta 78 (ID 695) usamos las coordenadas reales de Xalapa
-    const stopsData = {
+    const stopsData: any = {
       type: 'FeatureCollection',
       features: []
     };
     
-    // Estas son coordenadas reales aproximadas para la ruta 78 en Xalapa
-    const stopCoordinates = [
-      [-96.92155, 19.54023], // Terminal
-      [-96.92035, 19.53784],
-      [-96.91904, 19.53556],
-      [-96.91712, 19.53294],
-      [-96.91532, 19.53056],
-      [-96.91349, 19.52811],
-      [-96.91125, 19.52578],
-      [-96.90895, 19.52342],
-      [-96.90694, 19.52118],
-      [-96.90485, 19.51883],
-      [-96.90267, 19.51651],
-      [-96.90051, 19.51418],
-      [-96.89834, 19.51185],
-      [-96.89645, 19.50962],
-      [-96.89452, 19.50742],
-      [-96.89264, 19.50523],
-      [-96.89072, 19.50302],
-      [-96.88879, 19.50084],
-      [-96.88698, 19.49874],
-      [-96.88517, 19.49664],
-      [-96.88336, 19.49453],
-      [-96.88147, 19.49238],
-      [-96.87953, 19.49043], // Terminal
-    ];
+    // Coordenadas de paradas basadas en el ID de la ruta
+    let stopCoordinates: [number, number][] = [];
+    
+    // Ruta 78 (ID 695)
+    if (zipPath.includes('78_ruta') || zipPath.includes('695')) {
+      stopCoordinates = [
+        [-96.92155, 19.54023], // Terminal
+        [-96.92035, 19.53784],
+        [-96.91904, 19.53556],
+        [-96.91712, 19.53294],
+        [-96.91532, 19.53056],
+        [-96.91349, 19.52811],
+        [-96.91125, 19.52578],
+        [-96.90895, 19.52342],
+        [-96.90694, 19.52118],
+        [-96.90485, 19.51883],
+        [-96.90267, 19.51651],
+        [-96.90051, 19.51418],
+        [-96.89834, 19.51185],
+        [-96.89645, 19.50962],
+        [-96.89452, 19.50742],
+        [-96.89264, 19.50523],
+        [-96.89072, 19.50302],
+        [-96.88879, 19.50084],
+        [-96.88698, 19.49874],
+        [-96.88517, 19.49664],
+        [-96.88336, 19.49453],
+        [-96.88147, 19.49238],
+        [-96.87953, 19.49043], // Terminal
+      ];
+    } 
+    // Ruta 81 (ID 696)
+    else if (zipPath.includes('81_ruta') || zipPath.includes('696')) {
+      stopCoordinates = [
+        [-96.89856, 19.53928], // Terminal
+        [-96.89634, 19.53742],
+        [-96.89425, 19.53589],
+        [-96.89238, 19.53427],
+        [-96.89052, 19.53265],
+        [-96.88874, 19.53094],
+        [-96.88689, 19.52894],
+        [-96.88503, 19.52694],
+        [-96.88334, 19.52509],
+        [-96.88165, 19.52324],
+        [-96.87996, 19.52139],
+        [-96.87781, 19.51954],
+        [-96.87593, 19.51778],
+        [-96.87385, 19.51602],
+        [-96.87196, 19.51436],
+        [-96.87008, 19.51269],
+        [-96.86829, 19.51075], // Terminal
+      ];
+    }
     
     // Generar las paradas
     for (let i = 0; i < stopCoordinates.length; i++) {
