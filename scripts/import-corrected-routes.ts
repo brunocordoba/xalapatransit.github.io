@@ -309,6 +309,18 @@ async function importAllCorrectedRoutes() {
       }
       
       try {
+        // Verificar si la ruta ya existe (por seguridad)
+        const existingRoute = await db.select()
+          .from(busRoutes)
+          .where(eq(busRoutes.id, uniqueId))
+          .limit(1);
+          
+        if (existingRoute && existingRoute.length > 0) {
+          console.log(`La ruta ${uniqueId} (${routeName}) ya existe, eliminándola primero...`);
+          await db.delete(busStops).where(eq(busStops.routeId, uniqueId));
+          await db.delete(busRoutes).where(eq(busRoutes.id, uniqueId));
+        }
+        
         // Importar ruta y paradas
         const result = await importRouteWithStops(
           uniqueId,
@@ -316,6 +328,20 @@ async function importAllCorrectedRoutes() {
           path.join(baseDir, variant.routeFile),
           variant.stopsFile ? path.join(baseDir, variant.stopsFile) : undefined
         );
+        
+        // Verificar que la ruta se haya creado correctamente
+        const [createdRoute] = await db.select({ count: busRoutes.stopsCount })
+          .from(busRoutes)
+          .where(eq(busRoutes.id, uniqueId));
+          
+        if (!createdRoute) {
+          throw new Error(`La ruta ${uniqueId} no se creó correctamente`);
+        }
+        
+        if (createdRoute.count !== result.stopsCount) {
+          console.warn(`El contador de paradas para ruta ${uniqueId} no coincide: DB=${createdRoute.count}, Importado=${result.stopsCount}`);
+          await db.execute(`UPDATE bus_routes SET stops_count = ${result.stopsCount} WHERE id = ${uniqueId}`);
+        }
         
         console.log(`Importada ruta ${uniqueId} (${routeName}) con ${result.stopsCount} paradas`);
         importedVariants++;
@@ -458,15 +484,41 @@ async function importRouteWithStops(
     console.error(`Error general procesando ruta ${routeId}:`, error);
   }
   
-  // Actualizar contador de paradas en la ruta de manera explícita
-  try {
-    await db.update(busRoutes)
-      .set({ stopsCount })
-      .where(eq(busRoutes.id, routeId));
-    
-    console.log(`Actualizado contador de paradas para ruta ${routeId}: ${stopsCount} paradas`);
-  } catch (error) {
-    console.error(`Error al actualizar contador de paradas para ruta ${routeId}:`, error);
+  // Actualizar contador de paradas en la ruta de manera explícita e inmediata
+  if (stopsCount > 0) {
+    try {
+      const result = await db.update(busRoutes)
+        .set({ stopsCount })
+        .where(eq(busRoutes.id, routeId))
+        .returning({ updatedCount: busRoutes.stopsCount });
+      
+      if (result && result.length > 0) {
+        console.log(`Actualizado contador de paradas para ruta ${routeId}: ${result[0].updatedCount} paradas`);
+      } else {
+        console.log(`Actualizado contador de paradas para ruta ${routeId}: ${stopsCount} paradas`);
+      }
+      
+      // Verificación adicional
+      const [updatedRoute] = await db.select({ count: busRoutes.stopsCount })
+        .from(busRoutes)
+        .where(eq(busRoutes.id, routeId));
+        
+      if (updatedRoute && updatedRoute.count !== stopsCount) {
+        console.warn(`¡Advertencia! El contador de paradas para ruta ${routeId} no se actualizó correctamente.`);
+        console.warn(`Esperado: ${stopsCount}, Actual: ${updatedRoute.count}`);
+        
+        // Intento adicional de actualización
+        await db.execute(
+          `UPDATE bus_routes SET stops_count = ${stopsCount} WHERE id = ${routeId}`
+        );
+        
+        console.log(`Intento adicional de actualización completado para ruta ${routeId}`);
+      }
+    } catch (error) {
+      console.error(`Error al actualizar contador de paradas para ruta ${routeId}:`, error);
+    }
+  } else {
+    console.log(`No hay paradas que actualizar para ruta ${routeId}`);
   }
   
   return { stopsCount };
