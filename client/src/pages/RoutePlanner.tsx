@@ -143,7 +143,7 @@ const RoutePlanner: React.FC = () => {
                 
                 <div className="relative">
                   <div className="absolute left-0 top-0 bottom-0 w-12 bg-[#4caf50] rounded-l-lg flex items-center justify-center">
-                    <MapPin className="h-5 w-5 text-gray-800" />
+                    <MapPin className="h-5 w-5 text-white" />
                   </div>
                   <Input 
                     type="text" 

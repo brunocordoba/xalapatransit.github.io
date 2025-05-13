@@ -119,16 +119,28 @@ export default function NearbyStops() {
   
   return (
     <div className="container mx-auto p-4 max-w-7xl">
+      <div className="flex items-center mb-4">
+        <a href="/" className="flex items-center">
+          <div className="w-10 h-10 rounded-full bg-[#4caf50] flex items-center justify-center text-white font-bold mr-2 text-xs">RX</div>
+          <span className="text-[#4caf50] font-semibold">RUTAS XALAPA</span>
+        </a>
+        <a href="/" className="ml-auto text-sm text-[#4caf50] hover:underline flex items-center">
+          <span>Volver al sitio</span>
+          <svg xmlns="http://www.w3.org/2000/svg" className="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </a>
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Panel de búsqueda y resultados */}
         <div className="col-span-1">
           <div className="space-y-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xl text-center font-bold text-primary">
-                  Paradas Cercanas
+            <Card className="shadow-lg overflow-hidden border-0">
+              <CardHeader className="pb-2 bg-[#4caf50] text-white">
+                <CardTitle className="text-xl text-center font-bold">
+                  PARADAS CERCANAS
                 </CardTitle>
-                <CardDescription className="text-center">
+                <CardDescription className="text-center text-white">
                   Encuentra las paradas de autobús más cercanas a tu ubicación
                 </CardDescription>
               </CardHeader>
@@ -137,8 +149,7 @@ export default function NearbyStops() {
                   <Button
                     onClick={getUserLocation}
                     disabled={isGettingLocation}
-                    variant="orizo"
-                    className="w-full"
+                    className="w-full py-3 text-base font-bold bg-[#4caf50] text-white hover:bg-[#3d8b40] rounded-none shadow-md uppercase"
                   >
                     {isGettingLocation ? (
                       <>
@@ -187,10 +198,10 @@ export default function NearbyStops() {
                 </CardContent>
               </Card>
             ) : nearbyStopsData && nearbyStopsData.stops.length > 0 ? (
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">
-                    {nearbyStopsData.stops.length} paradas encontradas
+              <Card className="shadow-lg border-0">
+                <CardHeader className="pb-2 bg-[#4caf50] text-white">
+                  <CardTitle className="text-lg font-bold text-center">
+                    {nearbyStopsData.stops.length} PARADAS ENCONTRADAS
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
@@ -237,7 +248,12 @@ export default function NearbyStops() {
                 </CardContent>
               </Card>
             ) : userLocation && !nearbyStopsLoading ? (
-              <Card>
+              <Card className="shadow-lg border-0">
+                <CardHeader className="pb-2 bg-[#4caf50] text-white">
+                  <CardTitle className="text-lg font-bold text-center">
+                    NINGUNA PARADA ENCONTRADA
+                  </CardTitle>
+                </CardHeader>
                 <CardContent className="py-4 text-center">
                   <p>No se encontraron paradas cercanas en un radio de {maxDistance}m.</p>
                   <p className="text-sm text-muted-foreground mt-2">
