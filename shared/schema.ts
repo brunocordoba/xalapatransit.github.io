@@ -29,6 +29,15 @@ export const busStops = pgTable("bus_stops", {
   terminalType: text("terminal_type").default(""),
 });
 
+// Schema adicional para paradas de ruta que incluye GeoJSON
+export const busRouteStops = pgTable("bus_route_stops", {
+  id: serial("id").primaryKey(),
+  routeId: integer("route_id").notNull().references(() => busRoutes.id),
+  name: text("name").notNull(),
+  sequence: integer("sequence").notNull(),
+  geoJSON: jsonb("geo_json").notNull(),
+});
+
 // Create schemas for inserts
 export const insertBusRouteSchema = createInsertSchema(busRoutes).omit({
   id: true,
