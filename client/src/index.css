@@ -228,3 +228,21 @@
 .orizo-card-shadow {
   box-shadow: 0 4px 12px rgba(0, 86, 164, 0.15);
 }
+
+/* Estilos para selectores de fecha y tiempo */
+[class*="CalendarIcon"] {
+  @apply text-[#0056A4];
+}
+
+[class*="Clock3Icon"], 
+[class*="Clock10Icon"] {
+  @apply text-[#0056A4];
+}
+
+button[class*="border-2"] {
+  @apply border-[#0056A4] rounded-lg;
+}
+
+div[class*="SelectTrigger"] {
+  @apply border-[#0056A4] rounded-lg;
+}

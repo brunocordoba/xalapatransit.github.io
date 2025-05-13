@@ -279,7 +279,7 @@ const RoutePlanner: React.FC = () => {
                 <Button 
                   onClick={handleCalculateRoute}
                   disabled={!startLocation || !endLocation || isCalculating}
-                  className="w-full py-3 text-base font-bold bg-[#F9CD00] text-gray-800 hover:bg-[#e8bf00] rounded-full"
+                  className="w-full py-3 text-base font-bold bg-[#F9CD00] text-gray-800 hover:bg-[#e8bf00] rounded-full shadow-md uppercase"
                 >
                   {isCalculating ? "Calculando..." : "BUSCAR ITINERARIO"}
                 </Button>
@@ -287,7 +287,7 @@ const RoutePlanner: React.FC = () => {
             </Card>
 
             {routeResults && (
-              <Card className="mt-4">
+              <Card className="mt-4 orizo-card-shadow border-0">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg text-center text-primary">Itinerarios Encontrados</CardTitle>
                 </CardHeader>
