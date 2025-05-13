@@ -91,7 +91,7 @@ export function getBusStopIcon(isTerminal: boolean | null, color: string = '#fff
   const fillColor = '#FFFFFF';
   // La imagen muestra que las paradas tienen borde del color de la ruta 
   const borderColor = color; // Usar el color que viene como parámetro
-  const borderWidth = 4; // Borde más grueso como se muestra en la imagen
+  const borderWidth = 2.5; // Borde menos grueso según solicitud
   
   return L.divIcon({
     className: 'bus-stop-icon orizo-style',
@@ -198,7 +198,7 @@ export function drawRoutes(
         // 2. Dibujar el borde blanco (capa intermedia)
         const routeOutline = L.polyline(leafletCoords, {
           color: 'white',
-          weight: 10,
+          weight: 8, // Más delgado que antes (10px)
           opacity: 0.9,
           lineCap: 'butt',
           lineJoin: 'round',
@@ -212,7 +212,7 @@ export function drawRoutes(
         // El color principal de las rutas es amarillo brillante como en la imagen de referencia
         const routeLine = L.polyline(leafletCoords, {
           color: '#FFDD00', // Amarillo brillante como en la imagen compartida
-          weight: 8,
+          weight: 6, // Línea más delgada según solicitud
           opacity: 1.0,
           lineCap: 'butt',
           lineJoin: 'round',
@@ -357,14 +357,14 @@ export function highlightRoute(
         
         // Estilo actualizado para ruta seleccionada (línea gris oscuro, según imagen)
         routeLayers.route.setStyle({
-          weight: 10, 
+          weight: 8, // Línea más delgada según solicitud
           opacity: 1.0,
           color: '#404040', // Gris oscuro para ruta seleccionada (como en la imagen)
           className: 'route-line selected orizo-style'
         });
         
         routeLayers.outline.setStyle({
-          weight: 14,
+          weight: 12, // Reducido para mantener proporciones
           opacity: 0.9,
           className: 'route-outline selected orizo-style'
         });
