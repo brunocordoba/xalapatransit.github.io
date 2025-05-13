@@ -67,8 +67,12 @@ async function inspectRoute(routeId: number) {
       console.log('La ruta no tiene campo geoJSON');
     }
     
-    // Obtener paradas asociadas
-    const stops = await db.select().from(busStops).where(eq(busStops.routeId, routeId));
+    // Obtener paradas asociadas directamente desde la base de datos
+    const stopsResult = await pool.query(
+      'SELECT id, name, latitude, longitude, location FROM bus_stops WHERE route_id = $1',
+      [routeId]
+    );
+    const stops = stopsResult.rows;
     
     console.log('\n=== Información de paradas ===');
     console.log(`Número de paradas encontradas: ${stops.length}`);
