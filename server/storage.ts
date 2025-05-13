@@ -80,65 +80,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async initializeData(): Promise<void> {
-    // Check if data already exists
-    const existingRoutes = await db.select().from(busRoutes);
-    if (existingRoutes.length > 0) {
-      console.log("Database already contains data. Skipping initialization.");
-      return;
-    }
-
-    console.log("Initializing database with mock data...");
-
-    // Load routes from mock data
-    for (const routeData of mockRoutes) {
-      const route = await this.createRoute(routeData);
-      
-      // Generate stops for each route
-      if (routeData.geoJSON && (routeData.geoJSON as any).geometry && (routeData.geoJSON as any).geometry.coordinates) {
-        const coordinates = (routeData.geoJSON as any).geometry.coordinates as [number, number][];
-        
-        // Create terminal stops at the beginning and end
-        if (coordinates.length > 0) {
-          // First terminal
-          await this.createStop({
-            routeId: route.id,
-            name: `Terminal ${routeData.name.split('-')[0].trim()}`,
-            latitude: coordinates[0][0].toString(),
-            longitude: coordinates[0][1].toString(),
-            isTerminal: true,
-            terminalType: 'first'
-          });
-          
-          // Add some intermediate stops (sample every n-th coordinate)
-          const step = Math.max(1, Math.floor(coordinates.length / 8));
-          for (let i = step; i < coordinates.length - step; i += step) {
-            const stopName = `Parada ${i}`;
-            await this.createStop({
-              routeId: route.id,
-              name: stopName,
-              latitude: coordinates[i][0].toString(),
-              longitude: coordinates[i][1].toString(),
-              isTerminal: false,
-              terminalType: ''
-            });
-          }
-          
-          // Last terminal
-          if (coordinates.length > 1) {
-            await this.createStop({
-              routeId: route.id,
-              name: `Terminal ${routeData.name.split('→')[1]?.trim() || 'Final'}`,
-              latitude: coordinates[coordinates.length - 1][0].toString(),
-              longitude: coordinates[coordinates.length - 1][1].toString(),
-              isTerminal: true,
-              terminalType: 'last'
-            });
-          }
-        }
-      }
-    }
-
-    console.log("Database initialization completed.");
+    // ¡IMPORTANTE! Inicialización de datos desactivada para evitar rutas duplicadas.
+    // Las rutas se cargarán exclusivamente mediante el script de importación
+    
+    console.log("Database initialization skipped to prevent duplicate routes.");
+    return;
   }
 }
 
