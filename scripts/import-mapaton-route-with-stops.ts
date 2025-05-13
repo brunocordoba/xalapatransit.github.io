@@ -137,7 +137,8 @@ async function createStops(routeId: number, stopsFeatures: any[]): Promise<numbe
   
   try {
     // Limpiar paradas existentes para esa ruta si las hay
-    await db.delete(busStops).where(eq(busStops.routeId, routeId));
+    // Usamos SQL directo para evitar problemas con el esquema
+    await pool.query('DELETE FROM bus_stops WHERE route_id = $1', [routeId]);
     
     // Ordenar paradas por sequence si existe la propiedad
     const sortedStops = [...stopsFeatures].sort((a, b) => {
@@ -146,7 +147,7 @@ async function createStops(routeId: number, stopsFeatures: any[]): Promise<numbe
       return seqA - seqB;
     });
     
-    // Crear cada parada
+    // Crear cada parada usando SQL directo
     for (let i = 0; i < sortedStops.length; i++) {
       const stop = sortedStops[i];
       
@@ -161,34 +162,37 @@ async function createStops(routeId: number, stopsFeatures: any[]): Promise<numbe
       // Generar un nombre para la parada si no lo tiene
       const stopName = props.name || `Parada ${i + 1} de Ruta ${routeId}`;
       
-      // Datos para la inserción de la parada
-      const stopData = {
-        routeId,
-        name: stopName,
-        description: props.description || '',
-        latitude: coordinates[1],
-        longitude: coordinates[0],
-        location: {
-          type: "Point",
-          coordinates: [coordinates[0], coordinates[1]]
-        },
-        sequence: props.sequence || i,
-        waitTime: props.dwellTime || 0,
-      };
+      // Definir la ubicación como JSON
+      const location = JSON.stringify({
+        type: "Point",
+        coordinates: [coordinates[0], coordinates[1]]
+      });
+
+      // Insertar usando SQL directo
+      await pool.query(
+        `INSERT INTO bus_stops (route_id, name, latitude, longitude, is_terminal, terminal_type, location) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          routeId,
+          stopName,
+          coordinates[1].toString(),
+          coordinates[0].toString(),
+          false,
+          '',
+          location
+        ]
+      );
       
-      // Validar los datos con el esquema de inserción
-      const parsedData = insertBusStopSchema.parse(stopData);
-      
-      // Insertar la parada en la base de datos
-      const [insertedStop] = await db.insert(busStops).values(parsedData).returning();
       createdCount++;
     }
     
     // Actualizar el conteo de paradas en la ruta
-    await db.update(busRoutes)
-      .set({ stopsCount: createdCount })
-      .where(eq(busRoutes.id, routeId));
+    await pool.query(
+      'UPDATE bus_routes SET stops_count = $1 WHERE id = $2',
+      [createdCount, routeId]
+    );
     
+    console.log(`Se crearon ${createdCount} paradas para la ruta ${routeId}`);
     return createdCount;
   } catch (error) {
     console.error('Error al crear las paradas:', error);
