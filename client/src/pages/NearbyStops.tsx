@@ -10,6 +10,7 @@ import RouteMapView from '../components/RouteMapView';
 
 interface NearbyStop extends BusStop {
   distance: number;
+  coordinates: [number, number]; // [longitude, latitude]
 }
 
 interface NearbyStopsResponse {

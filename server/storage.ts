@@ -65,7 +65,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createStop(insertStop: InsertBusStop): Promise<BusStop> {
-    const result = await db.insert(busStops).values(insertStop).returning();
+    // Crear un objeto de ubicación GeoJSON para la parada
+    const location: BusStopLocation = {
+      type: "Point",
+      coordinates: [
+        parseFloat(insertStop.longitude), 
+        parseFloat(insertStop.latitude)
+      ]
+    };
+    
+    // Añadir la ubicación al objeto de parada
+    const stopWithLocation = {
+      ...insertStop,
+      location
+    };
+    
+    const result = await db.insert(busStops).values(stopWithLocation).returning();
     return result[0];
   }
   
@@ -80,6 +95,31 @@ export class DatabaseStorage implements IStorage {
     const result = await db.update(busRoutes)
       .set(updates)
       .where(eq(busRoutes.id, id))
+      .returning();
+    
+    return result.length > 0 ? result[0] : undefined;
+  }
+  
+  async updateStopLocation(id: number): Promise<BusStop | undefined> {
+    // Obtener la parada existente
+    const [existingStop] = await db.select().from(busStops).where(eq(busStops.id, id));
+    if (!existingStop) {
+      return undefined;
+    }
+    
+    // Crear un objeto de ubicación GeoJSON para la parada
+    const location: BusStopLocation = {
+      type: "Point",
+      coordinates: [
+        parseFloat(existingStop.longitude), 
+        parseFloat(existingStop.latitude)
+      ]
+    };
+    
+    // Actualizar la parada con la ubicación
+    const result = await db.update(busStops)
+      .set({ location })
+      .where(eq(busStops.id, id))
       .returning();
     
     return result.length > 0 ? result[0] : undefined;

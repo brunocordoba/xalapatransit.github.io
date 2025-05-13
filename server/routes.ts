@@ -195,7 +195,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const nearbyStops = allStops
         .map(stop => {
           // Calcular distancia Haversine entre puntos
-          const stopCoords = stop.location?.coordinates || [0, 0];
+          // Si la parada no tiene location, usar latitude/longitude
+          let stopCoords: [number, number];
+          if (stop.location && typeof stop.location === 'object' && 'coordinates' in stop.location) {
+            stopCoords = stop.location.coordinates as [number, number];
+          } else {
+            stopCoords = [parseFloat(stop.longitude), parseFloat(stop.latitude)];
+          }
+          
           const distance = haversineDistance(
             longitude, latitude,  // [long, lat] del usuario
             stopCoords[0], stopCoords[1]  // [long, lat] de la parada
@@ -203,6 +210,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           return {
             ...stop,
+            coordinates: stopCoords,
             distance: Math.round(distance)  // Redondear a metros enteros
           };
         })
@@ -231,7 +239,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id: stop.id,
           name: stop.name,
           routeId: stop.routeId,
-          coordinates: stop.location?.coordinates || [0, 0],
+          coordinates: stop.coordinates,
           distance: stop.distance
         })),
         routes: filteredRouteDetails

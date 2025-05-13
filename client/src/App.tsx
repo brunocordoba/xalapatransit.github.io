@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Home from "@/pages/Home";
 import RouteEditor from "@/pages/RouteEditor";
 import RoutePlanner from "@/pages/RoutePlanner";
+import NearbyStops from "@/pages/NearbyStops";
 import NotFound from "@/pages/not-found";
 
 function Router() {
