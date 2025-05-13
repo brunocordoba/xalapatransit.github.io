@@ -4,11 +4,17 @@ export const XALAPA_CENTER: [number, number] = [19.542, -96.9271];
 // Default zoom level
 export const DEFAULT_ZOOM = 13;
 
-// Límites de la ciudad de Xalapa ajustados a la imagen de referencia
+// Límites de la ciudad de Xalapa ajustados a la imagen de referencia, con margen extra
 // [lat min, lng min, lat max, lng max]
 export const XALAPA_BOUNDS: [[number, number], [number, number]] = [
-  [19.385, -97.097], // Esquina suroeste: [latMin, lngMin] (incluye Coatepec)
-  [19.685, -96.776]  // Esquina noreste: [latMax, lngMax] (incluye Banderilla y alrededores)
+  [19.350, -97.150], // Esquina suroeste con margen extra
+  [19.720, -96.700]  // Esquina noreste con margen extra
+];
+
+// Los límites de visualización (más estrictos para que el mapa se centre en la región importante)
+export const XALAPA_VIEW_BOUNDS: [[number, number], [number, number]] = [
+  [19.385, -97.097], // Esquina suroeste para la vista (incluye Coatepec)
+  [19.685, -96.776]  // Esquina noreste para la vista (incluye Banderilla y alrededores)
 ];
 
 // Nivel mínimo de zoom permitido (zoom exacto como en la imagen de referencia)

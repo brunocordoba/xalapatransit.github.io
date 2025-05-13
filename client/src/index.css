@@ -167,6 +167,29 @@
   height: 100% !important;
   width: 100% !important;
   min-height: 300px;
+  overflow: hidden;
+  will-change: transform;
+}
+
+/* Mejorar rendimiento de tiles */
+.leaflet-tile {
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Corregir bordes de las tiles para evitar áreas en blanco */
+.leaflet-tile-container {
+  will-change: transform;
+  transform: translateZ(0);
+  pointer-events: none !important;
+}
+
+/* Ampliar un poco las tiles para evitar espacios en blanco */
+.map-tile-layer .leaflet-tile {
+  margin: -1px;
+  height: calc(100% + 2px);
+  width: calc(100% + 2px);
 }
 
 /* Estilo para el botón de borrar selección */

@@ -31,11 +31,14 @@ export function initializeMap(container: HTMLElement, center: [number, number], 
     attributionControl: true,
     minZoom: MIN_ZOOM,
     maxZoom: MAX_ZOOM,
+    // Usamos maxBounds más grandes para la carga de tiles (evita áreas blancas)
     maxBounds: L.latLngBounds(XALAPA_BOUNDS),
     maxBoundsViscosity: 1.0, // Hace que el mapa "rebote" cuando se intenta alejar de los límites
     zoomSnap: 0.5,  // Permite niveles de zoom fraccionarios como 9.5
     wheelPxPerZoomLevel: 120,  // Control más preciso del zoom con la rueda del ratón
-    bounceAtZoomLimits: true   // Rebote al alcanzar los límites de zoom
+    bounceAtZoomLimits: true,  // Rebote al alcanzar los límites de zoom
+    fadeAnimation: true,       // Animación de fundido para tiles
+    preferCanvas: true         // Usar canvas para mejor rendimiento
   }).setView(center, zoom);
   
   // Usar Mapbox como proveedor de mapas base (exactamente como Mapaton)
@@ -46,18 +49,26 @@ export function initializeMap(container: HTMLElement, center: [number, number], 
     L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=' + mapboxToken, {
       attribution: '© <a href="https://www.mapbox.com/about/maps/">Mapbox</a> © <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       maxZoom: MAX_ZOOM,
-      minZoom: MIN_ZOOM,
+      minZoom: MIN_ZOOM - 1,  // Cargamos un nivel más para evitar áreas blancas
       tileSize: 512,
       zoomOffset: -1,
-      bounds: XALAPA_BOUNDS // Asegurarse de que las tiles solo se carguen dentro de estos límites
+      noWrap: true,  // Evitar repetición de tiles
+      updateWhenIdle: false,  // Mantener actualizado incluso durante el desplazamiento
+      updateWhenZooming: true,  // Actualizar durante el zoom
+      keepBuffer: 8,  // Mantener más tiles en buffer (por defecto es 2)
+      className: 'map-tile-layer'  // Clase CSS para dar estilo a los tiles
     }).addTo(map);
   } else {
     // Fallback a OpenStreetMap si no hay token de Mapbox
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       maxZoom: MAX_ZOOM,
-      minZoom: MIN_ZOOM,
-      bounds: XALAPA_BOUNDS
+      minZoom: MIN_ZOOM - 1,  // Cargamos un nivel más para evitar áreas blancas
+      noWrap: true,  // Evitar repetición de tiles
+      updateWhenIdle: false,  // Mantener actualizado incluso durante el desplazamiento
+      updateWhenZooming: true,  // Actualizar durante el zoom
+      keepBuffer: 8,  // Mantener más tiles en buffer (por defecto es 2)
+      className: 'map-tile-layer'  // Clase CSS para dar estilo a los tiles
     }).addTo(map);
   }
   
