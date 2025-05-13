@@ -102,7 +102,19 @@ async function processRoute(routeId: number): Promise<boolean> {
     }
 
     // Parsear el geoJSON para obtener las coordenadas
-    const geoJSON = route.geoJSON ? JSON.parse(route.geoJSON as string) : null;
+    let geoJSON: any = null;
+    
+    // Intentar usar el campo geoJSON primero
+    if (route.geoJSON) {
+      try {
+        geoJSON = typeof route.geoJSON === 'string' 
+          ? JSON.parse(route.geoJSON) 
+          : route.geoJSON;
+      } catch (e) {
+        console.error(`Error al parsear geoJSON para la ruta ${routeId}:`, e);
+      }
+    }
+    
     if (!geoJSON || !geoJSON.coordinates || !Array.isArray(geoJSON.coordinates)) {
       console.error(`Formato inválido de geoJSON para la ruta ${routeId}`);
       return false;
@@ -135,8 +147,7 @@ async function processRoute(routeId: number): Promise<boolean> {
     // Actualizar la ruta en la base de datos
     await db.update(busRoutes)
       .set({ 
-        geoJSON: JSON.stringify(updatedGeoJSON),
-        updatedAt: new Date()
+        geoJSON: JSON.stringify(updatedGeoJSON)
       })
       .where(eq(busRoutes.id, routeId));
 

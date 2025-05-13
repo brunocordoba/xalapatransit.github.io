@@ -154,10 +154,19 @@ async function snapRouteToRoad(routeId: number): Promise<boolean> {
     // Obtener las coordenadas de la ruta
     let coordinates: [number, number][] = [];
     
-    if (route.geometry) {
-      coordinates = JSON.parse(route.geometry).coordinates;
+    if (route.geoJSON) {
+      const geoData = typeof route.geoJSON === 'string' 
+        ? JSON.parse(route.geoJSON as string) 
+        : route.geoJSON;
+      
+      if (geoData && geoData.coordinates && Array.isArray(geoData.coordinates)) {
+        coordinates = geoData.coordinates as [number, number][];
+      } else {
+        console.error(`Formato inválido de geoJSON para la ruta ${routeId}`);
+        return false;
+      }
     } else {
-      console.error(`Ruta ${routeId} no tiene geometría.`);
+      console.error(`Ruta ${routeId} no tiene geoJSON.`);
       return false;
     }
     
