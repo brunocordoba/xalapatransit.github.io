@@ -1,404 +1,329 @@
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import ws from 'ws';
-import * as fs from 'fs';
-import * as path from 'path';
+import fs from 'fs';
+import path from 'path';
+import { db } from '../server/db';
+import { busRoutes, busStops } from '@shared/schema';
+import { eq } from 'drizzle-orm';
 
-// Configura WebSocket para Neon
-neonConfig.webSocketConstructor = ws;
+const ROUTE_COLOR_MAP: Record<string, string> = {
+  'Norte': '#E74C3C', // Rojo
+  'Sur': '#3498DB',   // Azul
+  'Centro': '#F1C40F', // Amarillo
+  'Este': '#2ECC71',  // Verde
+  'Oeste': '#9B59B6'  // Morado
+};
 
-// Configura conexión a la base de datos
-if (!process.env.DATABASE_URL) {
-  throw new Error('DATABASE_URL environment variable is not set');
+function getRandomColor(): string {
+  const colors = Object.values(ROUTE_COLOR_MAP);
+  return colors[Math.floor(Math.random() * colors.length)];
 }
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-
-// Ruta a la carpeta con los archivos corregidos
-const CORRECTED_DIR = path.resolve('./tmp/corregidos/Corregidos');
-
-// Asignar colores a las rutas según zona y ID
 function getRouteColor(routeId: number, zone: string): string {
-  // Colores base por zona
-  const zoneColors: Record<string, string> = {
-    'Norte': '#FFDD00', // Amarillo
-    'Sur': '#00AAFF',   // Azul claro
-    'Este': '#FF5500',  // Naranja
-    'Oeste': '#AA00FF', // Púrpura
-    'Centro': '#00CC66' // Verde
-  };
-  
-  // Usar color de zona con una variación basada en ID para distinguir rutas de la misma zona
-  const baseColor = zoneColors[zone] || '#FFDD00';
-  
-  return baseColor;
+  // Asignar color según la zona si está disponible, si no usar uno aleatorio
+  if (ROUTE_COLOR_MAP[zone]) {
+    return ROUTE_COLOR_MAP[zone];
+  }
+  return getRandomColor();
 }
 
-// Determinar zona según el ID de la ruta
-function determineZone(routeId: number): string {
-  if (routeId >= 1 && routeId <= 25) return 'Norte';
-  if (routeId >= 26 && routeId <= 50) return 'Sur';
-  if (routeId >= 51 && routeId <= 75) return 'Este';
-  if (routeId >= 76 && routeId <= 100) return 'Oeste';
-  return 'Centro';
+function determineZone(routeId: number, description?: string): string {
+  // Determinar zona basada en el ID de ruta o la descripción
+  if (routeId >= 1 && routeId <= 20) {
+    return 'Norte';
+  } else if (routeId >= 21 && routeId <= 40) {
+    return 'Sur';
+  } else if (routeId >= 41 && routeId <= 60) {
+    return 'Centro';
+  } else if (routeId >= 61 && routeId <= 80) {
+    return 'Este';
+  } else if (routeId >= 81 && routeId <= 120) {
+    return 'Oeste';
+  }
+
+  // Si hay descripción, intentar determinar zona por palabras clave
+  if (description) {
+    const desc = description.toLowerCase();
+    if (desc.includes('norte') || desc.includes('camacho') || desc.includes('bugambilias')) {
+      return 'Norte';
+    } else if (desc.includes('sur') || desc.includes('arco')) {
+      return 'Sur';
+    } else if (desc.includes('centro') || desc.includes('catedral')) {
+      return 'Centro';
+    } else if (desc.includes('este') || desc.includes('lazaro')) {
+      return 'Este';
+    } else if (desc.includes('oeste') || desc.includes('animas')) {
+      return 'Oeste';
+    }
+  }
+
+  return 'Centro'; // Valor por defecto
 }
 
-// Aproximar tiempo de ruta basado en número de puntos
 function approximateTimeFromPoints(points: number): string {
-  // Estimación basada en la complejidad de la ruta
-  const minutes = Math.max(20, Math.min(120, Math.floor(points / 10) * 5));
-  
+  // Calcular tiempo aproximado basado en la cantidad de puntos
+  // Asumiendo que cada punto toma entre 1-2 minutos
+  const minutes = Math.max(10, Math.min(120, Math.floor(points * 1.5)));
   const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
+  const mins = minutes % 60;
   
   if (hours > 0) {
-    return `${hours}h ${remainingMinutes}min`;
+    return `${hours}h ${mins}min`;
+  }
+  return `${mins} min`;
+}
+
+function getRandomFrequency(): string {
+  // Generar frecuencia aleatoria entre 5-25 minutos
+  const frequencies = ['5-10 min', '10-15 min', '15-20 min', '20-25 min'];
+  return frequencies[Math.floor(Math.random() * frequencies.length)];
+}
+
+type RouteType = 'direct' | 'ida' | 'vuelta';
+
+// Función principal para importar todas las rutas corregidas
+async function importAllCorrectedRoutes() {
+  // Limpiar base de datos primero
+  console.log('Limpiando base de datos...');
+  await db.delete(busStops);
+  await db.delete(busRoutes);
+  
+  // Directorio donde están los archivos
+  const baseDir = './tmp/corregidos/Corregidos';
+  const files = fs.readdirSync(baseDir);
+  
+  // Extraer información de las rutas
+  const routes: Map<number, { 
+    routeId: number, 
+    name: string,
+    files: { 
+      type: RouteType, 
+      routeFile: string, 
+      stopsFile?: string 
+    }[]
+  }> = new Map();
+  
+  // Primera pasada: agrupar archivos por ID de ruta
+  for (const file of files) {
+    if (!file.endsWith('.geojson')) continue;
+    
+    // Extraer ID de ruta y tipo (route o stops)
+    let match: RegExpMatchArray | null;
+    
+    // Patrones para diferentes formatos de archivo
+    // 1. Ruta directa: 001_route.geojson y 001_stops.geojson
+    // 2. Ruta con ida/vuelta: 003_ida_route.geojson y 003_ida_stops.geojson
+    
+    if ((match = file.match(/^(\d+)_route\.geojson$/))) {
+      // Caso simple: 001_route.geojson
+      const routeId = parseInt(match[1]);
+      const stopsFile = `${match[1]}_stops.geojson`;
+      const stopsFilePath = path.join(baseDir, stopsFile);
+      
+      if (!routes.has(routeId)) {
+        routes.set(routeId, { 
+          routeId, 
+          name: `Ruta ${routeId}`,
+          files: []
+        });
+      }
+      
+      routes.get(routeId)!.files.push({
+        type: 'direct',
+        routeFile: file,
+        stopsFile: fs.existsSync(stopsFilePath) ? stopsFile : undefined
+      });
+    } 
+    else if ((match = file.match(/^(\d+)_ida_route\.geojson$/))) {
+      // Caso con ida: 003_ida_route.geojson
+      const routeId = parseInt(match[1]);
+      const stopsFile = `${match[1]}_ida_stops.geojson`;
+      const stopsFilePath = path.join(baseDir, stopsFile);
+      
+      if (!routes.has(routeId)) {
+        routes.set(routeId, { 
+          routeId, 
+          name: `Ruta ${routeId}`,
+          files: []
+        });
+      }
+      
+      routes.get(routeId)!.files.push({
+        type: 'ida',
+        routeFile: file,
+        stopsFile: fs.existsSync(stopsFilePath) ? stopsFile : undefined
+      });
+    }
+    else if ((match = file.match(/^(\d+)_vuelta_route\.geojson$/))) {
+      // Caso con vuelta: 003_vuelta_route.geojson
+      const routeId = parseInt(match[1]);
+      const stopsFile = `${match[1]}_vuelta_stops.geojson`;
+      const stopsFilePath = path.join(baseDir, stopsFile);
+      
+      if (!routes.has(routeId)) {
+        routes.set(routeId, { 
+          routeId, 
+          name: `Ruta ${routeId}`,
+          files: []
+        });
+      }
+      
+      routes.get(routeId)!.files.push({
+        type: 'vuelta',
+        routeFile: file,
+        stopsFile: fs.existsSync(stopsFilePath) ? stopsFile : undefined
+      });
+    }
+    // Ignorar archivos de paradas - se manejan junto con las rutas
   }
   
-  return `${minutes} min`;
-}
-
-// Generar frecuencia aleatoria para la ruta
-function getRandomFrequency(): string {
-  const options = [
-    '5-10 min',
-    '10-15 min',
-    '15-20 min',
-    '20-30 min'
-  ];
+  console.log(`Encontradas ${routes.size} rutas para importar`);
   
-  return options[Math.floor(Math.random() * options.length)];
-}
-
-// Importar una ruta y sus paradas
-async function importRouteWithStops(
-  routeId: number, 
-  routeType: 'direct' | 'ida' | 'vuelta', 
-  routeFilePath: string, 
-  stopsFilePath?: string
-): Promise<void> {
-  try {
-    console.log(`Importando ruta ${routeId}${routeType !== 'direct' ? ' (' + routeType + ')' : ''}...`);
+  // Segunda pasada: procesar cada ruta
+  let importedRoutes = 0;
+  let importedStops = 0;
+  
+  for (const [routeId, routeInfo] of routes.entries()) {
+    console.log(`Procesando ruta ${routeId}...`);
     
-    // Leer archivo de ruta
-    if (!fs.existsSync(routeFilePath)) {
-      console.error(`Archivo de ruta no encontrado: ${routeFilePath}`);
-      return;
-    }
-    
-    const routeData = JSON.parse(fs.readFileSync(routeFilePath, 'utf8'));
-    
-    // Verificar estructura del GeoJSON de ruta
-    if (!routeData) {
-      console.error(`Formato GeoJSON inválido para la ruta ${routeId} - No hay datos`);
-      return;
-    }
-    
-    // Extraer coordenadas
-    let coordinates: [number, number][] = [];
-    
-    if (routeData.features && routeData.features[0] && routeData.features[0].geometry) {
-      // Formato FeatureCollection
-      const routeFeature = routeData.features[0];
-      if (routeFeature.geometry.coordinates) {
-        coordinates = routeFeature.geometry.coordinates;
+    for (const fileInfo of routeInfo.files) {
+      // Determinar el nombre de la ruta basado en el tipo
+      let routeName = `Ruta ${routeId}`;
+      if (fileInfo.type === 'ida') {
+        routeName = `Ruta ${routeId} (Ida)`;
+      } else if (fileInfo.type === 'vuelta') {
+        routeName = `Ruta ${routeId} (Vuelta)`;
       }
-    } else if (routeData.geometry && routeData.geometry.coordinates) {
-      // Formato Feature directo
-      coordinates = routeData.geometry.coordinates;
-    } else if (routeData.coordinates) {
-      // Objeto con coordenadas directas
-      coordinates = routeData.coordinates;
-    } else if (Array.isArray(routeData)) {
-      // Array directo de coordenadas
-      coordinates = routeData;
-    }
-    
-    // Asegurar que hay coordenadas
-    if (!Array.isArray(coordinates) || coordinates.length < 2) {
-      // Si no hay suficientes coordenadas, crear al menos dos puntos para que la ruta se pueda mostrar
-      console.warn(`La ruta ${routeId} no tiene suficientes coordenadas. Creando coordenadas mínimas para visualización.`);
       
-      // Usar coordenadas del centro de Xalapa como fallback
-      const centroXalapa: [number, number] = [-96.9270, 19.5438];
-      coordinates = [
-        [centroXalapa[0] - 0.005, centroXalapa[1] - 0.005], // Punto al suroeste del centro
-        [centroXalapa[0] + 0.005, centroXalapa[1] + 0.005]  // Punto al noreste del centro
-      ];
-    }
-    
-    // Determinar nombre de la ruta
-    const zone = determineZone(routeId);
-    const routeName = `Ruta ${routeId}${routeType !== 'direct' ? ' (' + routeType + ')' : ''}`;
-    const shortName = `R${routeId}${routeType === 'ida' ? 'I' : routeType === 'vuelta' ? 'V' : ''}`;
-    
-    // Construir ID apropiado para el tipo de ruta
-    let idRuta;
-    if (routeType === 'direct') {
-      idRuta = routeId;
-    } else if (routeType === 'ida') {
-      // Para ida usamos el formato XXYYY donde XX es el ID de la ruta y YYY es 001
-      idRuta = routeId * 1000 + 1;
-    } else {
-      // Para vuelta usamos el formato XXYYY donde XX es el ID de la ruta y YYY es 002
-      idRuta = routeId * 1000 + 2;
-    }
-    
-    // Preparar datos para la inserción
-    const routeInsertData = {
-      id: idRuta,
-      name: routeName,
-      shortName: shortName,
-      color: getRouteColor(routeId, zone),
-      frequency: getRandomFrequency(),
-      scheduleStart: '05:00',
-      scheduleEnd: '23:00',
-      stopsCount: 0, // Se actualizará después
-      approximateTime: approximateTimeFromPoints(coordinates.length),
-      zone: zone,
-      popular: false,
-      geoJSON: {
-        type: "FeatureCollection",
-        features: [
-          {
-            type: "Feature",
-            properties: {
-              id: idRuta,
-              name: routeName,
-              shortName: shortName,
-              color: getRouteColor(routeId, zone)
-            },
-            geometry: {
-              type: "LineString",
-              coordinates: coordinates
-            }
-          }
-        ]
+      // Crear ID de ruta único
+      let uniqueRouteId = routeId;
+      if (fileInfo.type === 'ida') {
+        uniqueRouteId = routeId * 1000 + 1; // Ejemplo: 3001 para ruta 3 ida
+      } else if (fileInfo.type === 'vuelta') {
+        uniqueRouteId = routeId * 1000 + 2; // Ejemplo: 3002 para ruta 3 vuelta
       }
-    };
-    
-    // Insertar la ruta
-    const insertRouteResult = await pool.query(`
-      INSERT INTO bus_routes (
-        id, name, short_name, color, frequency, schedule_start, schedule_end,
-        stops_count, approximate_time, zone, popular, geo_json
-      )
-      VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
-      )
-      ON CONFLICT (id) DO UPDATE SET
-        name = EXCLUDED.name,
-        short_name = EXCLUDED.short_name,
-        color = EXCLUDED.color,
-        frequency = EXCLUDED.frequency,
-        schedule_start = EXCLUDED.schedule_start,
-        schedule_end = EXCLUDED.schedule_end,
-        stops_count = EXCLUDED.stops_count,
-        approximate_time = EXCLUDED.approximate_time,
-        zone = EXCLUDED.zone,
-        popular = EXCLUDED.popular,
-        geo_json = EXCLUDED.geo_json
-      RETURNING id
-    `, [
-      routeInsertData.id,
-      routeInsertData.name,
-      routeInsertData.shortName,
-      routeInsertData.color,
-      routeInsertData.frequency,
-      routeInsertData.scheduleStart,
-      routeInsertData.scheduleEnd,
-      routeInsertData.stopsCount,
-      routeInsertData.approximateTime,
-      routeInsertData.zone,
-      routeInsertData.popular,
-      JSON.stringify(routeInsertData.geoJSON)
-    ]);
-    
-    if (insertRouteResult.rowCount === 0) {
-      console.error(`Error al insertar la ruta ${routeId}`);
-      return;
-    }
-    
-    console.log(`✅ Ruta creada: ${routeName} (ID: ${routeInsertData.id}) con ${coordinates.length} puntos`);
-    
-    // Procesar paradas si existe el archivo
-    let stopsCount = 0;
-    if (stopsFilePath && fs.existsSync(stopsFilePath)) {
-      const stopsData = JSON.parse(fs.readFileSync(stopsFilePath, 'utf8'));
       
-      // Verificar estructura del GeoJSON de paradas
-      if (!stopsData || !stopsData.features) {
-        console.warn(`Formato GeoJSON inválido para las paradas de la ruta ${routeId}`);
-      } else {
-        const validStops = stopsData.features.filter((feature: any) => 
-          feature && feature.geometry && feature.geometry.type === 'Point' && 
-          Array.isArray(feature.geometry.coordinates) && feature.geometry.coordinates.length >= 2
+      // Importar ruta y paradas
+      try {
+        const result = await importRouteWithStops(
+          uniqueRouteId,
+          routeName,
+          path.join(baseDir, fileInfo.routeFile),
+          fileInfo.stopsFile ? path.join(baseDir, fileInfo.stopsFile) : undefined
         );
         
-        console.log(`Procesando ${validStops.length} paradas para la ruta ${routeId}...`);
-        
-        // Insertar paradas por lotes para mejor rendimiento
-        for (let i = 0; i < validStops.length; i++) {
-          const stop = validStops[i];
-          const stopCoords = stop.geometry.coordinates;
-          const stopName = stop.properties?.name || `Parada ${i+1} (Ruta ${routeId})`;
-          const isTerminal = i === 0 || i === validStops.length - 1;
-          const terminalType = i === 0 ? 'origin' : i === validStops.length - 1 ? 'destination' : '';
+        console.log(`Importada ruta ${uniqueRouteId} (${routeName}) con ${result.stopsCount || 0} paradas`);
+        importedRoutes++;
+        importedStops += result.stopsCount || 0;
+      } catch (error) {
+        console.error(`Error al importar ruta ${routeId} (${fileInfo.type}):`, error);
+      }
+    }
+  }
+  
+  console.log(`Importación completada. Total: ${importedRoutes} rutas, ${importedStops} paradas.`);
+}
+
+// Función para importar una ruta y sus paradas desde archivos GeoJSON
+async function importRouteWithStops(
+  routeId: number, 
+  routeName: string,
+  routeGeojsonPath: string, 
+  stopsGeojsonPath?: string
+): Promise<{ stopsCount?: number }> {
+  // Leer archivo GeoJSON de ruta
+  const routeGeojson = JSON.parse(fs.readFileSync(routeGeojsonPath, 'utf8'));
+  
+  if (!routeGeojson.features || routeGeojson.features.length === 0) {
+    throw new Error(`Archivo GeoJSON de ruta inválido: ${routeGeojsonPath}`);
+  }
+  
+  // Extraer propiedades y coordenadas
+  const routeFeature = routeGeojson.features[0];
+  const routeProperties = routeFeature.properties || {};
+  const routeGeometry = routeFeature.geometry;
+  
+  if (routeGeometry.type !== 'LineString') {
+    throw new Error(`Geometría no soportada: ${routeGeometry.type}`);
+  }
+  
+  const coordinates = routeGeometry.coordinates;
+  
+  // Generar datos de la ruta
+  const zone = determineZone(routeId, routeProperties.desc);
+  const color = getRouteColor(routeId, zone);
+  const approximateTime = approximateTimeFromPoints(coordinates.length);
+  const frequency = getRandomFrequency();
+  
+  // Crear ruta en la base de datos
+  await db.insert(busRoutes).values({
+    id: routeId,
+    name: routeName,
+    shortName: `R${routeId}`,
+    color: color,
+    frequency: frequency,
+    scheduleStart: '05:30',
+    scheduleEnd: '22:00',
+    stopsCount: 0, // Se actualizará después
+    approximateTime: approximateTime,
+    zone: zone,
+    popular: false,
+    // Guardar el GeoJSON completo
+    geoJSON: routeGeojson
+  });
+  
+  // Importar paradas si están disponibles
+  let stopsCount = 0;
+  if (stopsGeojsonPath) {
+    try {
+      const stopsGeojson = JSON.parse(fs.readFileSync(stopsGeojsonPath, 'utf8'));
+      
+      if (stopsGeojson.features && stopsGeojson.features.length > 0) {
+        // Crear paradas
+        for (let i = 0; i < stopsGeojson.features.length; i++) {
+          const stopFeature = stopsGeojson.features[i];
+          const stopProperties = stopFeature.properties || {};
+          const stopGeometry = stopFeature.geometry;
           
-          // Crear objeto location con formato correcto para JSONB
-          const location = {
-            type: 'Point',
-            coordinates: stopCoords
-          };
+          if (stopGeometry.type !== 'Point') {
+            console.warn(`Geometría de parada no soportada: ${stopGeometry.type}`);
+            continue;
+          }
           
-          await pool.query(`
-            INSERT INTO bus_stops (
-              route_id, name, latitude, longitude, is_terminal, terminal_type, location, "order"
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-          `, [
-            routeInsertData.id,
-            stopName,
-            stopCoords[1].toString(), // latitude
-            stopCoords[0].toString(), // longitude
-            isTerminal,
-            terminalType,
-            JSON.stringify(location),
-            i + 1 // orden secuencial
-          ]);
+          const coordinates = stopGeometry.coordinates;
+          const stopId = routeId * 10000 + i + 1; // Generar ID único para la parada
+          
+          await db.insert(busStops).values({
+            id: stopId,
+            routeId: routeId,
+            name: `Parada ${i + 1}`,
+            latitude: coordinates[1],
+            longitude: coordinates[0],
+            sequence: i,
+            popular: false
+          });
           
           stopsCount++;
         }
-        
-        // Actualizar el contador de paradas en la ruta
-        if (stopsCount > 0) {
-          await pool.query(`
-            UPDATE bus_routes SET stops_count = $1 WHERE id = $2
-          `, [stopsCount, routeInsertData.id]);
-        }
-        
-        console.log(`✅ ${stopsCount} paradas importadas para la ruta ${routeId}`);
       }
-    } else {
-      console.warn(`No se encontró archivo de paradas para la ruta ${routeId}`);
+    } catch (error) {
+      console.error(`Error al importar paradas para ruta ${routeId}:`, error);
     }
-    
-    console.log(`Importación de ruta ${routeId} completada.`);
-  } catch (error) {
-    console.error(`Error al importar ruta ${routeId}:`, error);
   }
+  
+  // Actualizar contador de paradas en la ruta
+  await db.update(busRoutes)
+    .set({ stopsCount })
+    .where(eq(busRoutes.id, routeId));
+  
+  return { stopsCount };
 }
 
-// Importar todas las rutas corregidas
-async function importAllCorrectedRoutes() {
-  try {
-    console.log('Iniciando importación de rutas corregidas...');
-    
-    // Listar todos los archivos en la carpeta
-    const files = fs.readdirSync(CORRECTED_DIR);
-    
-    // Agrupar los archivos por ruta (ID y tipo)
-    const routeMap = new Map<string, {
-      id: number;
-      type: 'direct' | 'ida' | 'vuelta';
-      routeFile: string;
-      stopsFile?: string;
-    }>();
-    
-    // Recorrer archivos y agruparlos
-    for (const file of files) {
-      if (!file.endsWith('.geojson')) continue;
-      
-      // Analizar nombre del archivo para extraer información
-      let match;
-      
-      // Comprobar si es "ida" o "vuelta"
-      if ((match = file.match(/^(\d+)_(ida|vuelta)_(route|stops|stop)\.geojson$/))) {
-        const [, idStr, direction, fileType] = match;
-        const id = parseInt(idStr);
-        const key = `${id}_${direction}`;
-        
-        if (!routeMap.has(key)) {
-          routeMap.set(key, {
-            id,
-            type: direction as 'ida' | 'vuelta',
-            routeFile: '',
-            stopsFile: ''
-          });
-        }
-        
-        const entry = routeMap.get(key)!;
-        if (fileType === 'route') {
-          entry.routeFile = path.join(CORRECTED_DIR, file);
-        } else {
-          entry.stopsFile = path.join(CORRECTED_DIR, file);
-        }
-      }
-      // Comprobar si es "routes" o "stops" con ida/vuelta
-      else if ((match = file.match(/^(\d+)_(routes|stops)_(ida|vuelta)\.geojson$/))) {
-        const [, idStr, fileType, direction] = match;
-        const id = parseInt(idStr);
-        const key = `${id}_${direction}`;
-        
-        if (!routeMap.has(key)) {
-          routeMap.set(key, {
-            id,
-            type: direction as 'ida' | 'vuelta',
-            routeFile: '',
-            stopsFile: ''
-          });
-        }
-        
-        const entry = routeMap.get(key)!;
-        if (fileType === 'routes') {
-          entry.routeFile = path.join(CORRECTED_DIR, file);
-        } else {
-          entry.stopsFile = path.join(CORRECTED_DIR, file);
-        }
-      }
-      // Comprobar si es una ruta directa
-      else if ((match = file.match(/^(\d+)_(route|stops|stop)s?\.geojson$/))) {
-        const [, idStr, fileType] = match;
-        const id = parseInt(idStr);
-        const key = `${id}_direct`;
-        
-        if (!routeMap.has(key)) {
-          routeMap.set(key, {
-            id,
-            type: 'direct',
-            routeFile: '',
-            stopsFile: ''
-          });
-        }
-        
-        const entry = routeMap.get(key)!;
-        if (fileType === 'route') {
-          entry.routeFile = path.join(CORRECTED_DIR, file);
-        } else {
-          entry.stopsFile = path.join(CORRECTED_DIR, file);
-        }
-      }
-    }
-    
-    console.log(`Se encontraron ${routeMap.size} rutas para importar.`);
-    
-    // Importar cada ruta
-    for (const [key, route] of routeMap.entries()) {
-      if (!route.routeFile) {
-        console.warn(`La ruta ${key} no tiene archivo de ruta, omitiendo.`);
-        continue;
-      }
-      
-      await importRouteWithStops(route.id, route.type, route.routeFile, route.stopsFile);
-    }
-    
-    console.log('Importación de rutas completada.');
-  } catch (error) {
-    console.error('Error al importar rutas corregidas:', error);
-  } finally {
-    // Cerrar la conexión a la base de datos
-    await pool.end();
-  }
-}
-
-// Ejecutar la importación
-importAllCorrectedRoutes();
+// Ejecutar la función principal
+importAllCorrectedRoutes()
+  .then(() => {
+    console.log('Importación finalizada con éxito');
+    process.exit(0);
+  })
+  .catch(error => {
+    console.error('Error en la importación:', error);
+    process.exit(1);
+  });
