@@ -1,3 +1,28 @@
+#!/bin/bash
+
+# Este script controla la importación de rutas en lotes
+# Puede reanudar a partir de una ruta específica si se interrumpe el proceso
+
+# Verificar si se ha especificado una ruta de inicio
+if [ -z "$1" ]; then
+  echo "No se especificó ruta de inicio. Empezando desde la ruta 1."
+  START_ROUTE=1
+else
+  START_ROUTE=$1
+  echo "Iniciando importación desde la Ruta $START_ROUTE"
+fi
+
+# Verificar si se ha especificado una ruta final
+if [ -z "$2" ]; then
+  echo "No se especificó ruta final. Terminando en la ruta 120."
+  END_ROUTE=120
+else
+  END_ROUTE=$2
+  echo "Finalizando importación en la Ruta $END_ROUTE"
+fi
+
+# Crear script temporal de importación para las rutas especificadas
+cat > scripts/temp-import-batch.ts << EOF
 import * as fs from 'fs';
 import * as path from 'path';
 import { db } from '../server/db';
@@ -27,16 +52,22 @@ const zoneColors: Record<string, string> = {
   'centro': '#F97316' // orange-500
 };
 
-// Procesar todas las rutas en orden
-async function processAllRoutesSequentially() {
+// Procesar rutas en el rango especificado
+async function processRoutesInRange() {
   try {
-    console.log('Iniciando procesamiento secuencial de todas las rutas...');
+    console.log('Iniciando procesamiento de rutas en rango...');
+    
+    // Rango de rutas a procesar
+    const minRouteId = ${START_ROUTE};
+    const maxRouteId = ${END_ROUTE};
+    
+    console.log(\`Procesando rutas del \${minRouteId} al \${maxRouteId}...\`);
     
     // Obtener todos los directorios de rutas disponibles
     const directories = fs.readdirSync(SHAPEFILES_DIR)
       .filter(folder => !fs.lstatSync(path.join(SHAPEFILES_DIR, folder)).isFile());
     
-    console.log(`Encontrados ${directories.length} directorios de rutas en total`);
+    console.log(\`Encontrados \${directories.length} directorios de rutas en total\`);
     
     // Extraer información de cada ruta
     const routeFolders = directories
@@ -63,27 +94,21 @@ async function processAllRoutesSequentially() {
       routesById.get(route.id)!.push(route);
     }
     
-    // Determinar rango de rutas a procesar
-    const minRouteId = 1;
-    const maxRouteId = 120;
-    
-    console.log(`Procesando rutas del ${minRouteId} al ${maxRouteId} en orden estricto...`);
-    
     // Estadísticas de procesamiento
     let successCount = 0;
     let errorCount = 0;
     let totalStopsCount = 0;
     let skippedCount = 0;
     
-    // Procesar cada ruta en secuencia del 1 al 120
+    // Procesar cada ruta en el rango especificado
     for (let currentRouteId = minRouteId; currentRouteId <= maxRouteId; currentRouteId++) {
-      console.log(`\n=== Procesando Ruta ${currentRouteId} ===`);
+      console.log(\`\n=== Procesando Ruta \${currentRouteId} ===\`);
       
       // Verificar si existe la carpeta para esta ruta
       const routesWithThisId = routesById.get(currentRouteId) || [];
       
       if (routesWithThisId.length === 0) {
-        console.log(`No se encontró carpeta para la Ruta ${currentRouteId}, omitiendo...`);
+        console.log(\`No se encontró carpeta para la Ruta \${currentRouteId}, omitiendo...\`);
         skippedCount++;
         continue;
       }
@@ -91,7 +116,7 @@ async function processAllRoutesSequentially() {
       // Para cada carpeta de ruta (puede haber múltiples con el mismo ID)
       for (const route of routesWithThisId) {
         try {
-          console.log(`Procesando ${route.folder}...`);
+          console.log(\`Procesando \${route.folder}...\`);
           
           // Determinar subprocesado (ida/vuelta o directa)
           const hasIda = fs.existsSync(path.join(route.path, 'ida'));
@@ -101,13 +126,13 @@ async function processAllRoutesSequentially() {
           if (hasDirect) {
             // Procesar ruta directa
             const { route: newRoute, stopsCount } = await processRouteFromShapefile(
-              currentRouteId, // Usamos currentRouteId en lugar de route.id
+              currentRouteId,
               route.path, 
               'direct'
             );
             
             if (newRoute) {
-              console.log(`Ruta ${currentRouteId} (directa) importada con éxito. ID: ${newRoute.id}`);
+              console.log(\`Ruta \${currentRouteId} (directa) importada con éxito. ID: \${newRoute.id}\`);
               successCount++;
               totalStopsCount += stopsCount;
             }
@@ -116,13 +141,13 @@ async function processAllRoutesSequentially() {
           if (hasIda) {
             // Procesar ruta de ida
             const { route: newRoute, stopsCount } = await processRouteFromShapefile(
-              currentRouteId, // Usamos currentRouteId en lugar de route.id
+              currentRouteId,
               path.join(route.path, 'ida'),
               'ida'
             );
             
             if (newRoute) {
-              console.log(`Ruta ${currentRouteId} (ida) importada con éxito. ID: ${newRoute.id}`);
+              console.log(\`Ruta \${currentRouteId} (ida) importada con éxito. ID: \${newRoute.id}\`);
               successCount++;
               totalStopsCount += stopsCount;
             }
@@ -131,36 +156,36 @@ async function processAllRoutesSequentially() {
           if (hasVuelta) {
             // Procesar ruta de vuelta
             const { route: newRoute, stopsCount } = await processRouteFromShapefile(
-              currentRouteId, // Usamos currentRouteId en lugar de route.id
+              currentRouteId,
               path.join(route.path, 'vuelta'),
               'vuelta',
               100 // Offset pequeño para IDs de vuelta
             );
             
             if (newRoute) {
-              console.log(`Ruta ${currentRouteId} (vuelta) importada con éxito. ID: ${newRoute.id}`);
+              console.log(\`Ruta \${currentRouteId} (vuelta) importada con éxito. ID: \${newRoute.id}\`);
               successCount++;
               totalStopsCount += stopsCount;
             }
           }
           
           if (!hasDirect && !hasIda && !hasVuelta) {
-            console.log(`⚠️ Ruta ${currentRouteId} no tiene archivos de ruta válidos en ${route.folder}, omitiendo...`);
+            console.log(\`⚠️ Ruta \${currentRouteId} no tiene archivos de ruta válidos en \${route.folder}, omitiendo...\`);
             errorCount++;
           }
           
         } catch (error) {
-          console.error(`❌ Error procesando ruta ${currentRouteId} (${route.folder}):`, error);
+          console.error(\`❌ Error procesando ruta \${currentRouteId} (\${route.folder}):\`, error);
           errorCount++;
         }
       }
       
       // Mostramos estadísticas después de cada ruta (todas sus variantes)
-      console.log(`Progreso: ${successCount} rutas importadas, ${errorCount} errores, ${skippedCount} omitidas, ${totalStopsCount} paradas creadas`);
+      console.log(\`Progreso: \${successCount} rutas importadas, \${errorCount} errores, \${skippedCount} omitidas, \${totalStopsCount} paradas creadas\`);
     }
     
-    console.log(`\n=== Procesamiento completado ===`);
-    console.log(`Total: ${successCount} rutas importadas, ${errorCount} errores, ${skippedCount} omitidas, ${totalStopsCount} paradas`);
+    console.log(\`\n=== Procesamiento de lote completado ===\`);
+    console.log(\`Total: \${successCount} rutas importadas, \${errorCount} errores, \${skippedCount} omitidas, \${totalStopsCount} paradas\`);
     
     return { successCount, errorCount, skippedCount, totalStopsCount };
   } catch (error) {
@@ -184,13 +209,13 @@ async function processRouteFromShapefile(
   // Verificar si la ruta ya existe (para evitar duplicados)
   try {
     // Consultar por nombre exacto para verificar duplicados
-    const routeName = `Ruta ${baseId}${routeTypeSuffix}`;
+    const routeName = \`Ruta \${baseId}\${routeTypeSuffix}\`;
     const existingRoutes = await db.query.busRoutes.findMany({
       where: (busRoutes, { eq }) => eq(busRoutes.name, routeName)
     });
     
     if (existingRoutes.length > 0) {
-      console.log(`La ruta ${routeName} ya existe en la base de datos, omitiendo...`);
+      console.log(\`La ruta \${routeName} ya existe en la base de datos, omitiendo...\`);
       return { route: existingRoutes[0], stopsCount: 0 };
     }
   } catch (error) {
@@ -203,11 +228,11 @@ async function processRouteFromShapefile(
   const stopsZipPath = path.join(routePath, 'stops.zip');
   
   if (!fs.existsSync(routeZipPath)) {
-    throw new Error(`Archivo route.zip no encontrado en ${routePath}`);
+    throw new Error(\`Archivo route.zip no encontrado en \${routePath}\`);
   }
   
   // Crear directorios temporales para extracción
-  const tmpDir = path.join(PROCESSED_DIR, `route_${routeId}`);
+  const tmpDir = path.join(PROCESSED_DIR, \`route_\${routeId}\`);
   if (!fs.existsSync(tmpDir)) {
     fs.mkdirSync(tmpDir, { recursive: true });
   }
@@ -224,29 +249,29 @@ async function processRouteFromShapefile(
   
   try {
     // Extraer archivo de ruta
-    await execAsync(`unzip -o "${routeZipPath}" -d "${routeShpDir}"`);
+    await execAsync(\`unzip -o "\${routeZipPath}" -d "\${routeShpDir}"\`);
     
     // Buscar archivo .shp para la ruta
     const routeShpFiles = findFiles(routeShpDir, '.shp');
     if (routeShpFiles.length === 0) {
-      throw new Error(`No se encontraron archivos .shp en ${routeShpDir}`);
+      throw new Error(\`No se encontraron archivos .shp en \${routeShpDir}\`);
     }
     
     // Convertir shapefile de ruta a GeoJSON
     const routeShpFile = routeShpFiles[0];
     const routeGeoJsonFile = path.join(tmpDir, 'route.geojson');
     
-    await execAsync(`ogr2ogr -f GeoJSON "${routeGeoJsonFile}" "${routeShpFile}"`);
+    await execAsync(\`ogr2ogr -f GeoJSON "\${routeGeoJsonFile}" "\${routeShpFile}"\`);
     
     if (!fs.existsSync(routeGeoJsonFile)) {
-      throw new Error(`Error al convertir shapefile a GeoJSON: ${routeShpFile}`);
+      throw new Error(\`Error al convertir shapefile a GeoJSON: \${routeShpFile}\`);
     }
     
     // Leer archivo GeoJSON y extraer datos
     const routeGeoJson = JSON.parse(fs.readFileSync(routeGeoJsonFile, 'utf8'));
     
     if (!routeGeoJson || !routeGeoJson.features || routeGeoJson.features.length === 0) {
-      throw new Error(`No se encontraron características en el GeoJSON de la ruta`);
+      throw new Error(\`No se encontraron características en el GeoJSON de la ruta\`);
     }
     
     // Usar primera característica como ruta
@@ -254,7 +279,7 @@ async function processRouteFromShapefile(
     const routeCoordinates = routeFeature.geometry?.coordinates || [];
     
     if (!routeCoordinates || routeCoordinates.length === 0) {
-      throw new Error(`No se encontraron coordenadas en la ruta`);
+      throw new Error(\`No se encontraron coordenadas en la ruta\`);
     }
     
     // Determinar zona
@@ -263,8 +288,8 @@ async function processRouteFromShapefile(
     // Generar nombre y color
     // Para rutas de vuelta, usamos el ID base (sin offset) para mantener el nombre correcto
     const displayRouteId = routeType === 'vuelta' ? baseId : routeId;
-    const routeName = `Ruta ${displayRouteId}${routeTypeSuffix}`;
-    const shortName = `R${displayRouteId}${routeType !== 'direct' ? routeType.charAt(0).toUpperCase() : ''}`;
+    const routeName = \`Ruta \${displayRouteId}\${routeTypeSuffix}\`;
+    const shortName = \`R\${displayRouteId}\${routeType !== 'direct' ? routeType.charAt(0).toUpperCase() : ''}\`;
     const color = zoneColors[zone];
     
     // Crear objeto GeoJSON para la ruta
@@ -301,7 +326,7 @@ async function processRouteFromShapefile(
       geoJSON: finalRouteGeoJSON
     });
     
-    console.log(`✅ Ruta creada: ${routeName} (ID: ${route.id}) con ${routeCoordinates.length} puntos`);
+    console.log(\`✅ Ruta creada: \${routeName} (ID: \${route.id}) con \${routeCoordinates.length} puntos\`);
     
     // Procesar paradas si existen
     let stopsCount = 0;
@@ -309,7 +334,7 @@ async function processRouteFromShapefile(
     try {
       if (fs.existsSync(stopsZipPath)) {
         // Extraer archivo de paradas
-        await execAsync(`unzip -o "${stopsZipPath}" -d "${stopsShpDir}"`);
+        await execAsync(\`unzip -o "\${stopsZipPath}" -d "\${stopsShpDir}"\`);
         
         // Buscar archivo .shp para las paradas
         const stopsShpFiles = findFiles(stopsShpDir, '.shp');
@@ -319,7 +344,7 @@ async function processRouteFromShapefile(
           const stopsShpFile = stopsShpFiles[0];
           const stopsGeoJsonFile = path.join(tmpDir, 'stops.geojson');
           
-          await execAsync(`ogr2ogr -f GeoJSON "${stopsGeoJsonFile}" "${stopsShpFile}"`);
+          await execAsync(\`ogr2ogr -f GeoJSON "\${stopsGeoJsonFile}" "\${stopsShpFile}"\`);
           
           if (fs.existsSync(stopsGeoJsonFile)) {
             // Leer archivo GeoJSON y extraer datos
@@ -328,31 +353,31 @@ async function processRouteFromShapefile(
             if (stopsGeoJson && stopsGeoJson.features && stopsGeoJson.features.length > 0) {
               // Crear paradas
               stopsCount = await createStopsFromGeoJSON(route.id, stopsGeoJson);
-              console.log(`✅ Creadas ${stopsCount} paradas para la ruta ${route.id}`);
+              console.log(\`✅ Creadas \${stopsCount} paradas para la ruta \${route.id}\`);
             } else {
-              console.log(`No se encontraron paradas en el GeoJSON, generando automáticamente...`);
+              console.log(\`No se encontraron paradas en el GeoJSON, generando automáticamente...\`);
               stopsCount = await generateAutomaticStops(route.id, routeCoordinates);
             }
           } else {
-            console.log(`Error al convertir shapefile de paradas a GeoJSON, generando automáticamente...`);
+            console.log(\`Error al convertir shapefile de paradas a GeoJSON, generando automáticamente...\`);
             stopsCount = await generateAutomaticStops(route.id, routeCoordinates);
           }
         } else {
-          console.log(`No se encontraron archivos .shp para paradas, generando automáticamente...`);
+          console.log(\`No se encontraron archivos .shp para paradas, generando automáticamente...\`);
           stopsCount = await generateAutomaticStops(route.id, routeCoordinates);
         }
       } else {
-        console.log(`No se encontró archivo stops.zip, generando paradas automáticamente...`);
+        console.log(\`No se encontró archivo stops.zip, generando paradas automáticamente...\`);
         stopsCount = await generateAutomaticStops(route.id, routeCoordinates);
       }
     } catch (error) {
-      console.error(`Error procesando paradas para ruta ${routeId}:`, error);
+      console.error(\`Error procesando paradas para ruta \${routeId}:\`, error);
       // Si hay error al generar paradas, continuamos con 0 paradas
     }
     
     return { route, stopsCount };
   } catch (error) {
-    console.error(`Error procesando ruta ${routeId}:`, error);
+    console.error(\`Error procesando ruta \${routeId}:\`, error);
     throw error;
   }
 }
@@ -373,7 +398,7 @@ async function createStopsFromGeoJSON(routeId: number, stopsGeoJson: any): Promi
     
     await storage.createStop({
       routeId: routeId,
-      name: `Terminal Origen (R${routeId})`,
+      name: \`Terminal Origen (R\${routeId})\`,
       latitude: firstCoord[1].toString(),
       longitude: firstCoord[0].toString(),
       isTerminal: true,
@@ -388,7 +413,7 @@ async function createStopsFromGeoJSON(routeId: number, stopsGeoJson: any): Promi
       
       await storage.createStop({
         routeId: routeId,
-        name: `Parada ${i}`,
+        name: \`Parada \${i}\`,
         latitude: coord[1].toString(),
         longitude: coord[0].toString(),
         isTerminal: false,
@@ -404,7 +429,7 @@ async function createStopsFromGeoJSON(routeId: number, stopsGeoJson: any): Promi
       
       await storage.createStop({
         routeId: routeId,
-        name: `Terminal Destino (R${routeId})`,
+        name: \`Terminal Destino (R\${routeId})\`,
         latitude: lastCoord[1].toString(),
         longitude: lastCoord[0].toString(),
         isTerminal: true,
@@ -418,7 +443,7 @@ async function createStopsFromGeoJSON(routeId: number, stopsGeoJson: any): Promi
     
     return count;
   } catch (error) {
-    console.error(`Error creando paradas para ruta ${routeId}:`, error);
+    console.error(\`Error creando paradas para ruta \${routeId}:\`, error);
     return 0;
   }
 }
@@ -442,7 +467,7 @@ async function generateAutomaticStops(routeId: number, coordinates: [number, num
     const firstCoord = coordinates[0];
     await storage.createStop({
       routeId: routeId,
-      name: `Terminal Origen (R${routeId})`,
+      name: \`Terminal Origen (R\${routeId})\`,
       latitude: firstCoord[1].toString(),
       longitude: firstCoord[0].toString(),
       isTerminal: true,
@@ -458,7 +483,7 @@ async function generateAutomaticStops(routeId: number, coordinates: [number, num
         const coord = coordinates[index];
         await storage.createStop({
           routeId: routeId,
-          name: `Parada ${i}`,
+          name: \`Parada \${i}\`,
           latitude: coord[1].toString(),
           longitude: coord[0].toString(),
           isTerminal: false,
@@ -472,7 +497,7 @@ async function generateAutomaticStops(routeId: number, coordinates: [number, num
     const lastCoord = coordinates[coordinates.length - 1];
     await storage.createStop({
       routeId: routeId,
-      name: `Terminal Destino (R${routeId})`,
+      name: \`Terminal Destino (R\${routeId})\`,
       latitude: lastCoord[1].toString(),
       longitude: lastCoord[0].toString(),
       isTerminal: true,
@@ -485,7 +510,7 @@ async function generateAutomaticStops(routeId: number, coordinates: [number, num
     
     return count;
   } catch (error) {
-    console.error(`Error generando paradas automáticas para ruta ${routeId}:`, error);
+    console.error(\`Error generando paradas automáticas para ruta \${routeId}:\`, error);
     return 0;
   }
 }
@@ -543,7 +568,7 @@ function findFiles(dir: string, extension: string): string[] {
       .filter(file => file.endsWith(extension))
       .map(file => path.join(dir, file));
   } catch (error) {
-    console.error(`Error buscando archivos ${extension} en ${dir}:`, error);
+    console.error(\`Error buscando archivos \${extension} en \${dir}:\`, error);
     return [];
   }
 }
@@ -551,12 +576,19 @@ function findFiles(dir: string, extension: string): string[] {
 // Ejecutar el procesamiento
 async function main() {
   try {
-    const result = await processAllRoutesSequentially();
+    const result = await processRoutesInRange();
     console.log('Procesamiento finalizado con éxito:');
-    console.log(`- ${result.successCount} rutas importadas`);
-    console.log(`- ${result.errorCount} errores`);
-    console.log(`- ${result.skippedCount} rutas omitidas (no encontradas)`);
-    console.log(`- ${result.totalStopsCount} paradas creadas`);
+    console.log(\`- \${result.successCount} rutas importadas\`);
+    console.log(\`- \${result.errorCount} errores\`);
+    console.log(\`- \${result.skippedCount} rutas omitidas (no encontradas)\`);
+    console.log(\`- \${result.totalStopsCount} paradas creadas\`);
+    
+    // Si hay rutas omitidas, sugerir próximo rango
+    if (result.skippedCount > 0) {
+      const nextStartRoute = ${END_ROUTE} + 1;
+      const nextEndRoute = nextStartRoute + 9; // Procesar 10 rutas más
+      console.log(\`\nPara continuar, ejecutar: bash scripts/import-routes-batch.sh \${nextStartRoute} \${nextEndRoute}\`);
+    }
   } catch (error) {
     console.error('Error en el procesamiento principal:', error);
     process.exit(1);
@@ -565,3 +597,16 @@ async function main() {
 
 // Iniciar procesamiento
 main();
+EOF
+
+# Ejecutar script de importación
+echo "Iniciando importación de rutas desde $START_ROUTE hasta $END_ROUTE..."
+tsx scripts/temp-import-batch.ts
+
+# Verificar si hubo errores
+if [ $? -ne 0 ]; then
+  echo "Error durante la importación. Verifique los errores y vuelva a intentarlo."
+  exit 1
+fi
+
+echo "Importación completada con éxito."
