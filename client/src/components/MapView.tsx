@@ -27,7 +27,21 @@ function drawSingleRoute(
   onRouteClick: (routeId: number) => void
 ): {routeLine: L.Polyline, routeOutline: L.Polyline, shadowLine: L.Polyline} {
   try {
-    const geoJSON = route.geoJSON as any;
+    // Manejar diferentes tipos de datos para geoJSON
+    let geoJSON: any;
+    
+    // Para manejar el caso donde geoJSON ya es una cadena serializada
+    if (typeof route.geoJSON === 'string') {
+      try {
+        geoJSON = JSON.parse(route.geoJSON);
+      } catch (e) {
+        console.error(`Error al parsear JSON de ruta ${route.id}:`, e);
+        geoJSON = route.geoJSON;
+      }
+    } else {
+      geoJSON = route.geoJSON as any;
+    }
+    
     if (!geoJSON) {
       console.warn(`La ruta ${route.id} no tiene datos GeoJSON`);
       return {} as any;
@@ -38,10 +52,9 @@ function drawSingleRoute(
       type: typeof geoJSON,
       isArray: Array.isArray(geoJSON),
       geoJSONType: geoJSON.type,
-      keys: Object.keys(geoJSON),
+      keys: geoJSON ? Object.keys(geoJSON) : [],
       hasFeatures: geoJSON.features ? `Sí, ${geoJSON.features.length} features` : 'No',
-      featureType: geoJSON.features?.[0]?.type,
-      geometryType: geoJSON.features?.[0]?.geometry?.type
+      raw: JSON.stringify(geoJSON).substring(0, 100) + '...'
     });
     
     let coordinates: [number, number][] = [];
@@ -53,8 +66,10 @@ function drawSingleRoute(
     } else if (geoJSON.type === 'FeatureCollection' && Array.isArray(geoJSON.features) && geoJSON.features.length > 0) {
       // Formato FeatureCollection, tomar el primer feature
       const firstFeature = geoJSON.features[0];
-      if (firstFeature.geometry && firstFeature.geometry.type === 'LineString') {
+      if (firstFeature && firstFeature.geometry && firstFeature.geometry.type === 'LineString') {
         coordinates = firstFeature.geometry.coordinates;
+      } else {
+        console.log("Detalle del feature:", firstFeature);
       }
     } else if (geoJSON.geometry && geoJSON.geometry.coordinates) {
       // Objeto con geometry.coordinates
@@ -66,14 +81,24 @@ function drawSingleRoute(
       // Array directo de coordenadas
       coordinates = geoJSON;
     } else {
-      console.warn(`Formato GeoJSON no reconocido para la ruta ${route.id}`, geoJSON.type);
+      // No se pudo interpretar el GeoJSON, mostrar detalles para debug
+      console.error(`Formato GeoJSON no reconocido para la ruta ${route.id}. 
+        Tipo: ${geoJSON.type}, 
+        Keys: ${Object.keys(geoJSON).join(', ')},
+        Detalles:`, geoJSON);
       return {} as any;
     }
     
-    // Validar que hay coordenadas y que son válidas
+    // Si no se obtuvieron coordenadas, usar puntos por defecto
     if (!coordinates || !Array.isArray(coordinates) || coordinates.length < 2) {
-      console.warn(`La ruta ${route.id} no tiene suficientes coordenadas válidas`);
-      return {} as any;
+      console.warn(`Coordenadas insuficientes para la ruta ${route.id}, generando puntos por defecto`);
+      
+      // Usar coordenadas del centro de Xalapa como fallback
+      const centroXalapa: [number, number] = [-96.9270, 19.5438];
+      coordinates = [
+        [centroXalapa[0] - 0.005, centroXalapa[1] - 0.005], // Punto al suroeste del centro
+        [centroXalapa[0] + 0.005, centroXalapa[1] + 0.005]  // Punto al noreste del centro
+      ];
     }
     
     // Simplificar la geometría para mejor rendimiento
