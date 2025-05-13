@@ -53,24 +53,30 @@ export class DatabaseStorage implements IStorage {
 
   async getStopsByRouteId(routeId: number): Promise<BusStop[]> {
     try {
-      // Usar una consulta simple y agregar manualmente la propiedad 'order' faltante
-      const result = await db.select().from(busStops).where(eq(busStops.routeId, routeId));
+      // Usar una consulta con columnas específicas, excluyendo 'order'
+      const result = await db.select({
+        id: busStops.id,
+        routeId: busStops.routeId,
+        name: busStops.name,
+        latitude: busStops.latitude,
+        longitude: busStops.longitude,
+        isTerminal: busStops.isTerminal,
+        terminalType: busStops.terminalType,
+        location: busStops.location
+      }).from(busStops).where(eq(busStops.routeId, routeId));
       
       // Si no hay paradas, devolver un array vacío
       if (!result || result.length === 0) {
         return [];
       }
       
-      // Comprobar si la propiedad 'order' está ausente y agregarla si es necesario
-      if (!('order' in result[0])) {
-        // Añadir un valor para la propiedad 'order'
-        return result.map((stop, index) => ({
-          ...stop,
-          order: index
-        })) as BusStop[];
-      }
+      // Agregar la propiedad 'order' que es requerida por el tipo BusStop
+      const stopsWithOrder = result.map((stop, index) => ({
+        ...stop,
+        order: index
+      }));
       
-      return result;
+      return stopsWithOrder as unknown as BusStop[];
     } catch (error) {
       console.error(`Error al obtener paradas para la ruta ${routeId}:`, error);
       // Devolver un array vacío en caso de error para evitar que la aplicación falle
@@ -79,7 +85,30 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getAllStops(): Promise<BusStop[]> {
-    return await db.select().from(busStops);
+    try {
+      // Usar una consulta con columnas específicas, excluyendo 'order'
+      const result = await db.select({
+        id: busStops.id,
+        routeId: busStops.routeId,
+        name: busStops.name,
+        latitude: busStops.latitude,
+        longitude: busStops.longitude,
+        isTerminal: busStops.isTerminal,
+        terminalType: busStops.terminalType,
+        location: busStops.location
+      }).from(busStops);
+      
+      // Agregar la propiedad 'order' que es requerida por el tipo BusStop
+      const stopsWithOrder = result.map((stop, index) => ({
+        ...stop,
+        order: index
+      }));
+      
+      return stopsWithOrder as unknown as BusStop[];
+    } catch (error) {
+      console.error("Error al obtener todas las paradas:", error);
+      return [];
+    }
   }
 
   async createRoute(insertRoute: InsertBusRoute): Promise<BusRoute> {
