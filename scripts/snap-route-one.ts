@@ -46,7 +46,7 @@ async function snapToRoad(coordinates: [number, number][]): Promise<[number, num
       return coordinates; // En caso de error, devolver las coordenadas originales
     }
     
-    const data = await response.json();
+    const data = await response.json() as any;
     
     if (data.code !== "Ok" || !data.matchings || data.matchings.length === 0) {
       console.error("No se obtuvieron resultados de matching:", data);
@@ -67,6 +67,75 @@ async function snapToRoad(coordinates: [number, number][]): Promise<[number, num
 }
 
 // Procesamiento por lotes para evitar límites de la API
+// Función para simplificar coordenadas usando el algoritmo de Douglas-Peucker
+function simplifyCoordinates(
+  coordinates: [number, number][],
+  tolerance: number
+): [number, number][] {
+  if (coordinates.length <= 2) {
+    return coordinates;
+  }
+  
+  // Calcular la distancia de un punto a una línea
+  function perpendicularDistance(point: [number, number], lineStart: [number, number], lineEnd: [number, number]): number {
+    const [x, y] = point;
+    const [x1, y1] = lineStart;
+    const [x2, y2] = lineEnd;
+    
+    // Si los puntos de la línea son iguales, devolver la distancia al punto
+    if (x1 === x2 && y1 === y2) {
+      return Math.sqrt(Math.pow(x - x1, 2) + Math.pow(y - y1, 2));
+    }
+    
+    // Calcular la distancia perpendicular
+    const numerator = Math.abs((y2 - y1) * x - (x2 - x1) * y + x2 * y1 - y2 * x1);
+    const denominator = Math.sqrt(Math.pow(y2 - y1, 2) + Math.pow(x2 - x1, 2));
+    
+    return numerator / denominator;
+  }
+  
+  // Implementación recursiva de Douglas-Peucker
+  function douglasPeucker(points: [number, number][], start: number, end: number, epsilon: number): number[] {
+    // Encontrar el punto con la mayor distancia perpendicular
+    let dmax = 0;
+    let index = 0;
+    
+    for (let i = start + 1; i < end; i++) {
+      const d = perpendicularDistance(points[i], points[start], points[end]);
+      if (d > dmax) {
+        index = i;
+        dmax = d;
+      }
+    }
+    
+    // Si la distancia máxima es mayor que epsilon, dividir y simplificar recursivamente
+    const result: number[] = [];
+    if (dmax > epsilon) {
+      const recResults1 = douglasPeucker(points, start, index, epsilon);
+      const recResults2 = douglasPeucker(points, index, end, epsilon);
+      
+      // Combinar los resultados sin duplicar el punto de división
+      result.push(...recResults1.slice(0, -1));
+      result.push(...recResults2);
+    } else {
+      // La línea no necesita más puntos
+      result.push(start);
+      result.push(end);
+    }
+    
+    return result;
+  }
+  
+  // Ejecutar el algoritmo
+  const indices = douglasPeucker(coordinates, 0, coordinates.length - 1, tolerance);
+  
+  // Ordenar los índices y eliminar duplicados
+  const uniqueIndices = [...new Set(indices)].sort((a, b) => a - b);
+  
+  // Construir el resultado con los puntos seleccionados
+  return uniqueIndices.map(index => coordinates[index]);
+}
+
 async function processCoordinatesInBatches(
   coordinates: [number, number][],
   batchSize: number = 100
@@ -125,22 +194,22 @@ async function processRouteOne() {
     // Obtener las coordenadas del GeoJSON de la ruta
     let coordinates: [number, number][] = [];
     
-    if (route.geojson) {
+    if (route.geo_json) {
       try {
-        const geoJson = typeof route.geojson === 'string' 
-          ? JSON.parse(route.geojson) 
-          : route.geojson;
+        const geoJson = typeof route.geo_json === 'string' 
+          ? JSON.parse(route.geo_json) 
+          : route.geo_json;
         
         if (geoJson.type === "LineString" && Array.isArray(geoJson.coordinates)) {
           coordinates = geoJson.coordinates.map((coord: number[]) => 
-            [parseFloat(coord[1]), parseFloat(coord[0])] as [number, number]
+            [Number(coord[1]), Number(coord[0])] as [number, number]
           );
         } else if (geoJson.type === "Feature" && 
                   geoJson.geometry && 
                   geoJson.geometry.type === "LineString" && 
                   Array.isArray(geoJson.geometry.coordinates)) {
           coordinates = geoJson.geometry.coordinates.map((coord: number[]) => 
-            [parseFloat(coord[1]), parseFloat(coord[0])] as [number, number]
+            [Number(coord[1]), Number(coord[0])] as [number, number]
           );
         }
       } catch (error) {
@@ -159,7 +228,7 @@ async function processRouteOne() {
     if (stopsQuery.rows.length > 0) {
       // Extraer coordenadas de las paradas
       const stopCoordinates = stopsQuery.rows.map(stop => 
-        [parseFloat(stop.latitude), parseFloat(stop.longitude)] as [number, number]
+        [Number(stop.latitude), Number(stop.longitude)] as [number, number]
       );
       
       // Podríamos mezclar las coordenadas de las paradas con la ruta original,
@@ -203,9 +272,14 @@ async function processRouteOne() {
       coordinates = combinedCoordinates;
     }
     
+    // Reducir la cantidad de puntos antes de procesar
+    console.log("Reduciendo la cantidad de puntos para optimizar el procesamiento...");
+    const simplifiedCoordinates = simplifyCoordinates(coordinates, 0.0001); // ~10m de tolerancia
+    console.log(`Reducidos de ${coordinates.length} a ${simplifiedCoordinates.length} puntos`);
+    
     // Procesar las coordenadas con la API de Mapbox para ajustarlas a las calles
     console.log("Iniciando proceso de snap-to-road con Mapbox...");
-    const snappedCoordinates = await processCoordinatesInBatches(coordinates, 90);
+    const snappedCoordinates = await processCoordinatesInBatches(simplifiedCoordinates, 90);
     
     if (snappedCoordinates.length === 0) {
       console.error("No se obtuvieron coordenadas después del snap-to-road");
@@ -222,7 +296,7 @@ async function processRouteOne() {
     
     // Actualizar la base de datos
     await pool.query(
-      "UPDATE bus_routes SET geojson = $1 WHERE id = $2",
+      "UPDATE bus_routes SET geo_json = $1 WHERE id = $2",
       [JSON.stringify(newGeoJson), route.id]
     );
     
