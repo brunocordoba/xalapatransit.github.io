@@ -52,6 +52,7 @@ const RoutePlanner: React.FC = () => {
   const [routeResults, setRouteResults] = useState<any[] | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedZone, setSelectedZone] = useState<string>('all');
+  const [selectedRouteIds, setSelectedRouteIds] = useState<number[]>([]);
   
   // Cargar todas las rutas para poder mostrarlas en el mapa
   const { data: routes, isLoading: routesLoading } = useQuery<BusRoute[]>({
@@ -351,7 +352,14 @@ const RoutePlanner: React.FC = () => {
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
                     <DialogHeader className="p-4 border-b bg-green-50">
-                      <DialogTitle className="text-xl font-bold text-center text-green-800">Todas las Rutas de Xalapa</DialogTitle>
+                      <DialogTitle className="text-xl font-bold text-center text-green-800">
+                        Todas las Rutas de Xalapa
+                        {selectedRouteIds.length > 0 && (
+                          <span className="ml-2 text-sm bg-green-600 text-white px-2 py-1 rounded-full">
+                            {selectedRouteIds.length} seleccionada{selectedRouteIds.length !== 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </DialogTitle>
                       
                       <div className="relative mt-3">
                         <Input 
@@ -408,11 +416,17 @@ const RoutePlanner: React.FC = () => {
                             {filteredAndSortedRoutes.map(route => (
                               <div 
                                 key={route.id} 
-                                className={`p-3 rounded-lg border border-gray-200 hover:bg-gray-50
+                                className={`p-3 rounded-lg border ${selectedRouteIds.includes(route.id) ? 'bg-green-50 border-green-300' : 'border-gray-200 hover:bg-gray-50'} 
                                           cursor-pointer flex items-center space-x-3 transition-colors`}
                                 onClick={() => {
-                                  // Agregar lógica para mostrar la ruta en el mapa
-                                  console.log("Ruta seleccionada:", route.id);
+                                  // Agregar o quitar la ruta de las seleccionadas
+                                  setSelectedRouteIds(prev => {
+                                    if (prev.includes(route.id)) {
+                                      return prev.filter(id => id !== route.id);
+                                    } else {
+                                      return [...prev, route.id];
+                                    }
+                                  });
                                 }}
                               >
                                 <div 
@@ -437,8 +451,20 @@ const RoutePlanner: React.FC = () => {
                       )}
                     </div>
                     
-                    <div className="p-4 border-t bg-green-50 text-xs text-green-700 text-center">
-                      Selecciona una ruta para ver su trayecto en el mapa
+                    <div className="p-4 border-t bg-green-50 flex justify-between items-center">
+                      <div className="text-xs text-green-700">
+                        Selecciona una ruta para ver su trayecto en el mapa
+                      </div>
+                      {selectedRouteIds.length > 0 && (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-xs border-green-300 text-green-700 hover:bg-green-50"
+                          onClick={() => setSelectedRouteIds([])}
+                        >
+                          Limpiar selección
+                        </Button>
+                      )}
                     </div>
                   </DialogContent>
                 </Dialog>
@@ -512,16 +538,18 @@ const RoutePlanner: React.FC = () => {
             <CardContent className="p-0 h-full w-full">
               <RouteMapView 
                 routes={routes || []} 
-                selectedRoutes={routeResults ? routeResults.flatMap(route => 
-                  route.steps
-                    .filter((step: any) => step.type === 'bus')
-                    .map((step: any) => {
-                      // Encontrar el ID de la ruta basado en el nombre de la ruta
-                      const routeInfo = routes?.find(r => r.name === step.routeName);
-                      return routeInfo?.id || 0;
-                    })
-                    .filter((id: number) => id !== 0)
-                ) : []}
+                selectedRoutes={routeResults 
+                  ? routeResults.flatMap(route => 
+                      route.steps
+                        .filter((step: any) => step.type === 'bus')
+                        .map((step: any) => {
+                          // Encontrar el ID de la ruta basado en el nombre de la ruta
+                          const routeInfo = routes?.find(r => r.name === step.routeName);
+                          return routeInfo?.id || 0;
+                        })
+                        .filter((id: number) => id !== 0)
+                    ) 
+                  : selectedRouteIds}
               />
             </CardContent>
           </Card>
