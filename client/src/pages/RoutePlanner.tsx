@@ -289,7 +289,7 @@ const RoutePlanner: React.FC = () => {
             {routeResults && (
               <Card className="mt-4 orizo-card-shadow border-0">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-lg text-center text-primary">Itinerarios Encontrados</CardTitle>
+                  <CardTitle className="text-lg font-bold text-center text-[#0056A4]">Itinerarios Encontrados</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {routeResults.map((route) => (
@@ -349,7 +349,7 @@ const RoutePlanner: React.FC = () => {
 
         {/* Mapa */}
         <div className="col-span-1 lg:col-span-2">
-          <Card className="h-[calc(100vh-2rem)]">
+          <Card className="h-[calc(100vh-2rem)] orizo-card-shadow border-0">
             <CardContent className="p-0 h-full">
               <RouteMapView 
                 routes={routes || []} 
