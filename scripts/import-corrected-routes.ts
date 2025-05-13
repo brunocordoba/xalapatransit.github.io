@@ -261,6 +261,7 @@ async function importAllCorrectedRoutes() {
         // Si no hay una entrada de ruta para esta variante, crear una nueva con solo el archivo de paradas
         routeFiles[routeId].variants.push({
           type,
+          routeFile: "", // Campo requerido aunque esté vacío
           stopsFile: file
         });
       }
@@ -339,95 +340,122 @@ async function importRouteWithStops(
 ): Promise<{ stopsCount: number }> {
   let stopsCount = 0;
   
-  // Leer archivo de ruta
-  const routeData = JSON.parse(fs.readFileSync(routeFilePath, 'utf8'));
-  if (!routeData.features || routeData.features.length === 0) {
-    throw new Error(`Archivo de ruta inválido: ${routeFilePath}`);
-  }
-  
-  // Extraer datos de la característica principal
-  const feature = routeData.features[0];
-  const geometry = feature.geometry;
-  
-  // Extraer coordenadas según el tipo de geometría
-  let coordinates: [number, number][] = [];
-  if (geometry.type === 'LineString') {
-    coordinates = geometry.coordinates;
-  } else if (geometry.type === 'MultiLineString') {
-    // Para MultiLineString, concatenamos todos los segmentos
-    coordinates = geometry.coordinates.flat();
-  } else {
-    throw new Error(`Tipo de geometría no soportado: ${geometry.type}`);
-  }
-  
-  // Determinar zona y otros atributos
-  const zone = determineZone(routeId, feature.properties?.description);
-  const color = getRouteColor(routeId, zone);
-  const approximateTime = approximateTimeFromPoints(coordinates.length);
-  const frequency = getRandomFrequency();
-  
-  // Crear registro de ruta
-  await db.insert(busRoutes).values({
-    id: routeId,
-    name: routeName,
-    shortName: `R${routeId}`,
-    color: color,
-    frequency: frequency,
-    scheduleStart: '05:00',
-    scheduleEnd: '23:00',
-    stopsCount: 0, // Se actualizará después
-    approximateTime: approximateTime,
-    zone: zone,
-    popular: routeId <= 10, // Las primeras 10 rutas son populares
-    geoJSON: routeData
-  });
-  
-  // Procesar paradas si están disponibles
-  if (stopsFilePath && fs.existsSync(stopsFilePath)) {
-    try {
-      const stopsData = JSON.parse(fs.readFileSync(stopsFilePath, 'utf8'));
-      
-      if (stopsData.features && stopsData.features.length > 0) {
-        for (let i = 0; i < stopsData.features.length; i++) {
-          const stopFeature = stopsData.features[i];
-          const stopGeometry = stopFeature.geometry;
-          const stopProperties = stopFeature.properties || {};
-          
-          if (stopGeometry.type !== 'Point') {
-            console.warn(`Tipo de geometría de parada no soportado: ${stopGeometry.type}`);
-            continue;
-          }
-          
-          const position = stopGeometry.coordinates;
-          
-          // Determinar si es terminal
-          const isTerminal = i === 0 || i === stopsData.features.length - 1;
-          const terminalType = i === 0 ? 'origin' : (i === stopsData.features.length - 1 ? 'destination' : '');
-          
-          // Crear nombre de parada
-          const stopName = stopProperties.name || 
-                          stopProperties.description || 
-                          `Parada ${i + 1}`;
-          
-          // Crear parada
-          await db.insert(busStops).values({
-            routeId: routeId,
-            name: stopName,
-            latitude: position[1].toString(),
-            longitude: position[0].toString(),
-            order: i,
-            isTerminal: isTerminal,
-            terminalType: terminalType
-          });
-          
-          stopsCount++;
-        }
-      }
-    } catch (error) {
-      console.error(`Error procesando paradas para ruta ${routeId}:`, error);
+  try {
+    // Leer archivo de ruta
+    const routeData = JSON.parse(fs.readFileSync(routeFilePath, 'utf8'));
+    if (!routeData.features || routeData.features.length === 0) {
+      console.error(`Archivo de ruta no tiene características: ${routeFilePath}`);
+      return { stopsCount: 0 };
     }
-  } else {
-    console.log(`No se encontró archivo de paradas para ruta ${routeId}`);
+    
+    // Extraer datos de la característica principal
+    const feature = routeData.features[0];
+    
+    if (!feature.geometry) {
+      console.error(`Geometría no encontrada en la ruta: ${routeFilePath}`);
+      return { stopsCount: 0 };
+    }
+    
+    const geometry = feature.geometry;
+    
+    // Extraer coordenadas según el tipo de geometría
+    let coordinates: [number, number][] = [];
+    if (geometry.type === 'LineString') {
+      coordinates = geometry.coordinates;
+      console.log(`Usando geometría LineString con ${coordinates.length} puntos para ruta ${routeId}`);
+    } else if (geometry.type === 'MultiLineString') {
+      // Para MultiLineString, concatenamos todos los segmentos
+      coordinates = geometry.coordinates.flat();
+      console.log(`Usando geometría MultiLineString con ${coordinates.length} puntos para ruta ${routeId}`);
+    } else {
+      console.error(`Tipo de geometría no soportado: ${geometry.type}`);
+      return { stopsCount: 0 };
+    }
+    
+    // Determinar zona y otros atributos
+    const zone = determineZone(routeId, feature.properties?.description);
+    const color = getRouteColor(routeId, zone);
+    const approximateTime = approximateTimeFromPoints(coordinates.length);
+    const frequency = getRandomFrequency();
+    
+    // Crear registro de ruta
+    await db.insert(busRoutes).values({
+      id: routeId,
+      name: routeName,
+      shortName: `R${routeId}`,
+      color: color,
+      frequency: frequency,
+      scheduleStart: '05:00',
+      scheduleEnd: '23:00',
+      stopsCount: 0, // Se actualizará después
+      approximateTime: approximateTime,
+      zone: zone,
+      popular: routeId <= 10, // Las primeras 10 rutas son populares
+      geoJSON: routeData
+    });
+    
+    // Procesar paradas si están disponibles
+    if (stopsFilePath && fs.existsSync(stopsFilePath)) {
+      try {
+        const stopsData = JSON.parse(fs.readFileSync(stopsFilePath, 'utf8'));
+        
+        if (stopsData.features && stopsData.features.length > 0) {
+          console.log(`Importando ${stopsData.features.length} paradas para ruta ${routeId}`);
+          
+          for (let i = 0; i < stopsData.features.length; i++) {
+            const stopFeature = stopsData.features[i];
+            const stopGeometry = stopFeature.geometry;
+            const stopProperties = stopFeature.properties || {};
+            
+            if (stopGeometry.type !== 'Point') {
+              console.warn(`Tipo de geometría de parada no soportado: ${stopGeometry.type}`);
+              continue;
+            }
+            
+            const position = stopGeometry.coordinates;
+            
+            // Verificar que las coordenadas sean válidas
+            if (!Array.isArray(position) || position.length !== 2 || 
+                typeof position[0] !== 'number' || typeof position[1] !== 'number') {
+              console.warn(`Coordenadas inválidas para parada ${i} de ruta ${routeId}`);
+              continue;
+            }
+            
+            // Determinar si es terminal
+            const isTerminal = i === 0 || i === stopsData.features.length - 1;
+            const terminalType = i === 0 ? 'origin' : (i === stopsData.features.length - 1 ? 'destination' : '');
+            
+            // Crear nombre de parada
+            const stopName = stopProperties.name || 
+                            stopProperties.description || 
+                            `Parada ${i + 1}`;
+            
+            // Crear parada
+            await db.insert(busStops).values({
+              routeId: routeId,
+              name: stopName,
+              latitude: position[1].toString(),
+              longitude: position[0].toString(),
+              order: i,
+              isTerminal: isTerminal,
+              terminalType: terminalType
+            });
+            
+            stopsCount++;
+          }
+        } else {
+          console.log(`Archivo de paradas no tiene características: ${stopsFilePath}`);
+        }
+      } catch (error) {
+        console.error(`Error procesando paradas para ruta ${routeId}:`, error);
+      }
+    } else if (stopsFilePath) {
+      console.log(`Archivo de paradas no encontrado: ${stopsFilePath}`);
+    } else {
+      console.log(`No se especificó archivo de paradas para ruta ${routeId}`);
+    }
+  } catch (error) {
+    console.error(`Error general procesando ruta ${routeId}:`, error);
   }
   
   // Actualizar contador de paradas en la ruta
