@@ -90,77 +90,81 @@ const RoutePlanner: React.FC = () => {
         {/* Panel de búsqueda */}
         <div className="col-span-1">
           <div className="space-y-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xl text-center font-bold text-primary">Mi Itinerario</CardTitle>
+            <Card className="shadow-lg overflow-hidden">
+              <CardHeader className="pb-2 bg-[#0056A4] text-white">
+                <CardTitle className="text-xl text-center font-bold">Mi Itinerario</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-4 pt-6">
                 <div className="relative">
+                  <div className="absolute left-0 top-0 bottom-0 w-12 bg-[#0056A4] rounded-l-lg flex items-center justify-center">
+                    <MapPin className="h-5 w-5 text-white" />
+                  </div>
                   <Input 
                     type="text" 
                     value={startLocation}
                     onChange={(e) => setStartLocation(e.target.value)}
-                    className="pl-10 h-12 border-2 focus:border-primary" 
-                    placeholder="Inicio" 
+                    className="pl-14 h-12 border-2 border-[#0056A4] focus:ring-[#0056A4] focus:border-[#0056A4] rounded-lg" 
+                    placeholder="¿Desde dónde sales?" 
                   />
-                  <MapPin className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
                   {startLocation && (
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="absolute right-2 top-3 h-6 w-6 rounded-full p-0"
+                      className="absolute right-2 top-3 h-6 w-6 rounded-full p-0 hover:bg-gray-100"
                       onClick={() => setStartLocation("")}
                     >
-                      <XIcon className="h-4 w-4" />
+                      <XIcon className="h-4 w-4 text-gray-500" />
                     </Button>
                   )}
                 </div>
                 
-                <div className="flex justify-center">
+                <div className="flex justify-center -my-1 relative z-10">
                   <Button 
                     variant="outline" 
                     size="icon" 
-                    className="rounded-full p-2 border-2"
+                    className="rounded-full w-10 h-10 p-0 bg-white border-2 border-[#0056A4] shadow-md hover:bg-gray-50"
                     onClick={handleSwapLocations}
                   >
-                    <ArrowUpDown className="h-5 w-5 text-primary" />
+                    <ArrowUpDown className="h-5 w-5 text-[#0056A4]" />
                   </Button>
                 </div>
                 
                 <div className="relative">
+                  <div className="absolute left-0 top-0 bottom-0 w-12 bg-[#F9CD00] rounded-l-lg flex items-center justify-center">
+                    <MapPin className="h-5 w-5 text-gray-800" />
+                  </div>
                   <Input 
                     type="text" 
                     value={endLocation}
                     onChange={(e) => setEndLocation(e.target.value)}
-                    className="pl-10 h-12 border-2 focus:border-primary" 
-                    placeholder="Destino" 
+                    className="pl-14 h-12 border-2 border-[#F9CD00] focus:ring-[#F9CD00] focus:border-[#F9CD00] rounded-lg" 
+                    placeholder="¿A dónde vas?" 
                   />
-                  <MapPin className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
                   {endLocation && (
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="absolute right-2 top-3 h-6 w-6 rounded-full p-0"
+                      className="absolute right-2 top-3 h-6 w-6 rounded-full p-0 hover:bg-gray-100"
                       onClick={() => setEndLocation("")}
                     >
-                      <XIcon className="h-4 w-4" />
+                      <XIcon className="h-4 w-4 text-gray-500" />
                     </Button>
                   )}
                 </div>
                 
                 <Tabs defaultValue="departure" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2">
+                  <TabsList className="grid w-full grid-cols-2 border-2 border-[#0056A4] p-0 rounded-lg overflow-hidden">
                     <TabsTrigger 
                       value="departure" 
                       onClick={() => setIsArrival(false)}
-                      className="data-[state=active]:bg-primary data-[state=active]:text-white"
+                      className="rounded-none data-[state=active]:bg-[#0056A4] data-[state=active]:text-white py-3"
                     >
                       Salida
                     </TabsTrigger>
                     <TabsTrigger 
                       value="arrival" 
                       onClick={() => setIsArrival(true)}
-                      className="data-[state=active]:bg-primary data-[state=active]:text-white"
+                      className="rounded-none data-[state=active]:bg-[#0056A4] data-[state=active]:text-white py-3"
                     >
                       Llegada
                     </TabsTrigger>
@@ -275,10 +279,9 @@ const RoutePlanner: React.FC = () => {
                 <Button 
                   onClick={handleCalculateRoute}
                   disabled={!startLocation || !endLocation || isCalculating}
-                  variant="orizo"
-                  className="w-full py-3 text-base"
+                  className="w-full py-3 text-base font-bold bg-[#F9CD00] text-gray-800 hover:bg-[#e8bf00] rounded-full"
                 >
-                  {isCalculating ? "Calculando..." : "Calcular Ruta"}
+                  {isCalculating ? "Calculando..." : "BUSCAR ITINERARIO"}
                 </Button>
               </CardFooter>
             </Card>
