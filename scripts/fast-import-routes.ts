@@ -120,14 +120,28 @@ async function fastImportRoute(routeId: number) {
         
         for (let i = 0; i < stopsData.features.length; i++) {
           const stopFeature = stopsData.features[i];
+          
+          // Verificar que stopFeature y geometry existan
+          if (!stopFeature || !stopFeature.geometry) {
+            console.warn(`Parada ${i+1} de ruta ${uniqueId} no tiene geometría válida, omitiendo`);
+            continue;
+          }
+          
           const stopGeometry = stopFeature.geometry;
           
-          if (stopGeometry.type !== 'Point') continue;
+          // Verificar tipo de geometría
+          if (!stopGeometry.type || stopGeometry.type !== 'Point') {
+            console.warn(`Parada ${i+1} de ruta ${uniqueId} no es tipo Point, omitiendo`);
+            continue;
+          }
           
           const position = stopGeometry.coordinates;
           
           // Verificar que las coordenadas sean válidas
-          if (!Array.isArray(position) || position.length !== 2) continue;
+          if (!Array.isArray(position) || position.length !== 2) {
+            console.warn(`Parada ${i+1} de ruta ${uniqueId} tiene coordenadas inválidas, omitiendo`);
+            continue;
+          }
           
           // Determinar si es terminal
           const isTerminal = i === 0 || i === stopsData.features.length - 1;
