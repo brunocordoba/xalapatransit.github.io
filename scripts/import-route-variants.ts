@@ -38,12 +38,31 @@ async function importRouteVariant(baseRouteId: number, variant: 'ida' | 'vuelta'
       routeName = `Ruta ${baseRouteId} (Vuelta)`;
     }
     
-    // Buscar archivos
-    const routeFilePath = path.join(baseDir, `${paddedId}_${variant}_route.geojson`);
+    // Buscar archivos (varios formatos posibles)
+    let routeFilePath = path.join(baseDir, `${paddedId}_${variant}_route.geojson`);
     let stopsFilePath = path.join(baseDir, `${paddedId}_${variant}_stops.geojson`);
     
+    // Probar formato alternativo route_ida/vuelta
+    if (!fs.existsSync(routeFilePath)) {
+      const altRoutePath = path.join(baseDir, `${paddedId}_route_${variant}.geojson`);
+      if (fs.existsSync(altRoutePath)) {
+        routeFilePath = altRoutePath;
+      }
+    }
+    
+    // Probar varias opciones para archivos de paradas
     if (!fs.existsSync(stopsFilePath)) {
-      stopsFilePath = path.join(baseDir, `${paddedId}_${variant}_stop.geojson`);
+      // Opción 1: archivo _stop singular
+      const stopPath = path.join(baseDir, `${paddedId}_${variant}_stop.geojson`);
+      if (fs.existsSync(stopPath)) {
+        stopsFilePath = stopPath;
+      } else {
+        // Opción 2: formato stops_ida/vuelta
+        const altStopsPath = path.join(baseDir, `${paddedId}_stops_${variant}.geojson`);
+        if (fs.existsSync(altStopsPath)) {
+          stopsFilePath = altStopsPath;
+        }
+      }
     }
     
     if (!fs.existsSync(routeFilePath)) {
